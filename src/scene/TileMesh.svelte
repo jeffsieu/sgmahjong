@@ -1,41 +1,35 @@
 <script lang="ts">
   import {
     Mesh,
-    TextureLoader,
     ExtrudeBufferGeometry,
     BoxGeometry,
-    CanvasTexture,
-    Geometry,
-    Texture,
     MeshStandardMaterial,
     Shape,
-    Object3D,
-    Vector2,
-    Vector3,
-    RepeatWrapping,
+    Empty,
+    Color,
   } from "svelthree";
 
-  import type { Scene, Euler, Mesh as ThreeMesh } from "svelthree-three";
+  import LineSegments from "../svelthree-patch/LineSegments.svelte";
+
+  import {
+    Scene,
+    Mesh as ThreeMesh,
+    LineBasicMaterial,
+    WireframeGeometry,
+    EdgesGeometry,
+  } from "svelthree-three";
   import type { Tile } from "../tiles";
   import { TILE_HEIGHT, TILE_THICKNESS, TILE_WIDTH } from "./constants";
-  import { RoundedBoxBufferGeometry } from "./RoundedBoxGeometry";
 
   import { getTexture } from "./texture-utils";
+  import { afterUpdate, onMount } from "svelte";
 
   export let scene: Scene;
-  export let tile: Tile;
-
-  type Array3 = [number, number, number];
-  type Array4 = [number, number, number, string];
-
-  type PropPos = Vector3 | Array3;
-  type PropRot = Euler | Array3 | Array4;
-  type PropScale = Vector3 | Array3;
-
-  export let pos: PropPos = undefined;
-  export let rot: PropRot = undefined;
-  export let scale: PropScale = undefined;
-  export let parent: Object3D = undefined;
+  export let tile: Tile = null;
+  export let onPointerOut: (event: CustomEvent) => void = null;
+  export let onPointerOver: (event: CustomEvent) => void = null;
+  export let onClick: (event: CustomEvent) => void = null;
+  export let highlight: boolean = false;
 
   function createBoxWithRoundedEdges(
     width: number,
@@ -76,46 +70,109 @@
   const tileGeometry = new BoxGeometry(
     TILE_WIDTH,
     TILE_HEIGHT,
-    TILE_THICKNESS
-    // 0.1,
-    // 10
+    TILE_THICKNESS / 2
   );
 
-  const texture = getTexture(tile);
+  const fullTileGeometry = new BoxGeometry(
+    TILE_WIDTH,
+    TILE_HEIGHT,
+    TILE_THICKNESS
+  );
 
-  // Define a material with the image only on the front face
-  let face = new MeshStandardMaterial({
-    map: texture,
-    roughness: 0.5,
-    metalness: 0.5,
-  });
+  const tileWireframeGeometry = new EdgesGeometry(fullTileGeometry);
 
-  let otherFaces = new MeshStandardMaterial({
+  let whiteTileFace = new MeshStandardMaterial({
     color: 0xffffff,
     roughness: 0.5,
     metalness: 0.5,
   });
 
-  let tileMaterial = [
-    otherFaces,
-    otherFaces,
-    otherFaces,
-    otherFaces,
-    otherFaces,
+  // Define a material with the image only on the front face
+  let face = tile
+    ? new MeshStandardMaterial({
+        map: getTexture(tile),
+        roughness: 0.5,
+        metalness: 0.5,
+      })
+    : whiteTileFace;
+
+  const baseTileMaterial = [
+    whiteTileFace,
+    whiteTileFace,
+    whiteTileFace,
+    whiteTileFace,
+    whiteTileFace,
     face,
   ];
 
-  // let tileMaterial = otherFaces;
+  const baseBackMaterial = new MeshStandardMaterial({
+    color: 0x2b71d9,
+    roughness: 0.1,
+    metalness: 0.5,
+  });
+
+  const highlightedBackMaterial = new MeshStandardMaterial({
+    color: new Color(0x2b71d9).lerp(new Color(0xffffff), 0.5),
+    roughness: 0.1,
+    metalness: 0.5,
+  });
+  // highlightedBackMaterial.color = baseBackMaterial.color.lerp(
+  //   new Color(0xffffff),
+  //   0.5
+  // );
+
+  const highlightedTileMaterial = baseTileMaterial.map((material) =>
+    material.clone()
+  );
+  highlightedTileMaterial.forEach(
+    (mat) => (mat.color = mat.color.lerp(new Color(0xffffff), 0.5))
+  );
+
+  let tileMaterial = baseTileMaterial;
+  let backMaterial = baseBackMaterial;
+
+  afterUpdate(() => {
+    tileMaterial = highlight ? highlightedTileMaterial : baseTileMaterial;
+    backMaterial = highlight ? highlightedBackMaterial : baseBackMaterial;
+  });
+
+  const highlightMaterial = new LineBasicMaterial({
+    color: 0x000000,
+    linewidth: 1000,
+  });
 </script>
 
-<Mesh
-  {scene}
-  {parent}
-  {pos}
-  {rot}
-  {scale}
-  interact
-  geometry={tileGeometry}
-  material={tileMaterial}
-  {...$$restProps}
-/>
+<Empty {scene} {...$$restProps} let:parent>
+  <!-- <LineSegments
+    {scene}
+    {parent}
+    geometry={tileWireframeGeometry}
+    material={highlightMaterial}
+  /> -->
+  <Mesh
+    {scene}
+    {parent}
+    {onPointerOver}
+    {onPointerOut}
+    {onClick}
+    castShadow
+    receiveShadow
+    interact
+    pos={[0, 0, TILE_THICKNESS / 4]}
+    geometry={tileGeometry}
+    material={backMaterial}
+  />
+  <Mesh
+    {scene}
+    {parent}
+    {onPointerOver}
+    {onPointerOut}
+    {onClick}
+    castShadow
+    receiveShadow
+    interact
+    pos={[0, 0, -TILE_THICKNESS / 4]}
+    geometry={tileGeometry}
+    material={tileMaterial}
+  />
+</Empty>

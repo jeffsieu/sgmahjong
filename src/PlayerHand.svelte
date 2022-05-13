@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SeatedPlayer } from "./game-state";
+  import type { SeatedPlayer } from "./game-state/game-state";
   export let player: SeatedPlayer;
 </script>
 

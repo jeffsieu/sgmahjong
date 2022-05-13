@@ -1,3 +1,5 @@
-export interface PlayerHandInterface {
-  removeFromHand(index: number): void;
+import type { HandAction } from "../game-state/actions";
+
+export interface PlayerUI {
+  tryExecuteAction(action: HandAction): void;
 }

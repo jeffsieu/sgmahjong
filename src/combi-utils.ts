@@ -2,12 +2,15 @@ import { Chow, EyePair, Meld, Pong } from "./melds";
 import { NumberedTile, StandardMahjong, Tile } from "./tiles";
 
 export class Combination {
-  constructor(readonly name: string, readonly melds: Meld[]) {
-  }
+  constructor(
+    readonly name: string,
+    readonly melds: Meld[],
+    readonly isWinning: boolean
+  ) {}
 }
 
 export interface CombinationMatcher {
-  getFirstMatch(tiles: Tile[]): Combination | null;
+  getFirstMatch(tiles: Tile[], existingMelds: Meld[]): Combination | null;
   readonly combinationName: string;
   readonly isWinning: boolean;
 }
@@ -27,21 +30,27 @@ export class ChowOrPongMatcher implements MeldMatcher {
   }
 
   getAllUniqueMatches(tiles: Tile[]): Set<Meld> {
-    return new Set([...this.chowMatcher.getAllUniqueMatches(tiles), ...this.pongMatcher.getAllUniqueMatches(tiles)]);
+    return new Set([
+      ...this.chowMatcher.getAllUniqueMatches(tiles),
+      ...this.pongMatcher.getAllUniqueMatches(tiles),
+    ]);
   }
 }
 
 export class ChowMatcher implements MeldMatcher {
-  constructor(readonly tileFilter?: (tile: Tile) => boolean) {
-  }
+  constructor(readonly tileFilter?: (tile: Tile) => boolean) {}
 
   getAllUniqueMatches(tiles: Tile[]): Set<Chow> {
-    const filteredTiles = this.tileFilter ? tiles.filter(this.tileFilter) : tiles;
-    const numberedTiles = filteredTiles.filter((tile): tile is NumberedTile => tile instanceof NumberedTile);
+    const filteredTiles = this.tileFilter
+      ? tiles.filter(this.tileFilter)
+      : tiles;
+    const numberedTiles = filteredTiles.filter(
+      (tile): tile is NumberedTile => tile instanceof NumberedTile
+    );
 
     const matches = new Set<Chow>();
     for (const suit of StandardMahjong.SUIT_NUMBERED) {
-      const suitTiles = numberedTiles.filter(tile => tile.suit === suit);
+      const suitTiles = numberedTiles.filter((tile) => tile.suit === suit);
       if (suitTiles.length < 3) {
         continue;
       }
@@ -53,7 +62,10 @@ export class ChowMatcher implements MeldMatcher {
         const first = uniqueTiles[i];
         const second = uniqueTiles[i + 1];
         const third = uniqueTiles[i + 2];
-        if (first.value + 1 === second.value && second.value + 1 === third.value) {
+        if (
+          first.value + 1 === second.value &&
+          second.value + 1 === third.value
+        ) {
           matches.add(new Chow([first, second, third]));
         }
       }
@@ -64,11 +76,12 @@ export class ChowMatcher implements MeldMatcher {
 }
 
 export class PongMatcher implements MeldMatcher {
-  constructor(readonly tileFilter?: (tile: Tile) => boolean) {
-  }
+  constructor(readonly tileFilter?: (tile: Tile) => boolean) {}
 
   getAllUniqueMatches(tiles: Tile[]): Set<Pong> {
-    const filteredTiles = this.tileFilter ? tiles.filter(this.tileFilter) : tiles;
+    const filteredTiles = this.tileFilter
+      ? tiles.filter(this.tileFilter)
+      : tiles;
     const appearCounts = new Map<Tile, number>();
 
     const matches = new Set<Pong>();
@@ -89,11 +102,12 @@ export class PongMatcher implements MeldMatcher {
 }
 
 export class EyePairMatcher implements MeldMatcher {
-  constructor(readonly tileFilter?: (tile: Tile) => boolean) {
-  }
+  constructor(readonly tileFilter?: (tile: Tile) => boolean) {}
 
   getAllUniqueMatches(tiles: Tile[]): Set<EyePair> {
-    const filteredTiles = this.tileFilter ? tiles.filter(this.tileFilter) : tiles;
+    const filteredTiles = this.tileFilter
+      ? tiles.filter(this.tileFilter)
+      : tiles;
     const appearCounts = new Map<Tile, number>();
 
     const matches = new Set<EyePair>();
@@ -115,9 +129,8 @@ export class EyePairMatcher implements MeldMatcher {
 
 export class MeldCombinationBuilder {
   readonly melds: MeldMatcher[] = [];
-  
-  constructor(readonly combinationName: string) {
-  }
+
+  constructor(readonly combinationName: string) {}
 
   withMeld(matcher: MeldMatcher): MeldCombinationBuilder {
     this.melds.push(matcher);
@@ -126,33 +139,78 @@ export class MeldCombinationBuilder {
 
   build(isWinning: boolean): CombinationMatcher {
     if (this.melds.length !== 5) {
-      throw new Error('MeldCombinationBuilder must have 5 meld matchers');
+      throw new Error("MeldCombinationBuilder must have 5 meld matchers");
     }
-    return new MeldCombinationMatcher(this.combinationName, this.melds, isWinning);
+    return new MeldCombinationMatcher(
+      this.combinationName,
+      this.melds,
+      isWinning
+    );
   }
 }
 
 export class MeldCombinationMatcher implements CombinationMatcher {
-  constructor(readonly combinationName: string, readonly melds: MeldMatcher[], readonly isWinning: boolean) {
-  }
-  
-  getFirstMatch(tiles: Tile[]): Combination | null {
+  constructor(
+    readonly combinationName: string,
+    readonly melds: MeldMatcher[],
+    readonly isWinning: boolean
+  ) {}
+
+  getFirstMatch(tiles: Tile[], existingMelds: Meld[]): Combination | null {
     // Recursively try all possible combinations of melds
-    const melds =  MeldCombinationMatcher.tryMatch(this.melds, tiles);
+    const melds = MeldCombinationMatcher.tryMatch(
+      this.melds,
+      tiles,
+      existingMelds
+    );
     if (melds) {
-      return new Combination(this.combinationName, melds);
+      return new Combination(this.combinationName, melds, this.isWinning);
     } else {
       return null;
     }
   }
 
-  private static tryMatch(meldMatchers: MeldMatcher[], tiles: Tile[]) : Meld[] | null {
-    if (meldMatchers.length === 0 && tiles.length === 0) {
+  private static tryMatch(
+    meldMatchers: MeldMatcher[],
+    tiles: Tile[],
+    existingMelds: Meld[]
+  ): Meld[] | null {
+    if (
+      meldMatchers.length === 0 &&
+      tiles.length === 0 &&
+      existingMelds.length === 0
+    ) {
       return [];
     } else if (meldMatchers.length === 0) {
       return [];
-    } else if (tiles.length === 0) {
+    } else if (tiles.length === 0 && existingMelds.length === 0) {
       return null;
+    } else if (existingMelds.length > 0) {
+      // Try to match the first existing meld first
+      const meld = existingMelds[0];
+
+      const remainingExistingMelds = [...existingMelds];
+      remainingExistingMelds.splice(remainingExistingMelds.indexOf(meld), 1);
+
+      for (const meldMatcher of meldMatchers) {
+        const meldMatches = meldMatcher.getAllUniqueMatches(meld.tiles);
+        if (meldMatches.size === 0) {
+          continue;
+        }
+
+        const remainingMatchers = [...meldMatchers];
+        remainingMatchers.splice(remainingMatchers.indexOf(meldMatcher), 1);
+
+        const remainingMatches = MeldCombinationMatcher.tryMatch(
+          remainingMatchers,
+          tiles,
+          remainingExistingMelds
+        );
+
+        if (remainingMatches) {
+          return [meld, ...remainingMatches];
+        }
+      }
     } else {
       // Try to match the first meld
       const meldMatcher = meldMatchers[0];
@@ -168,7 +226,11 @@ export class MeldCombinationMatcher implements CombinationMatcher {
           remainingTiles.splice(remainingTiles.indexOf(tile), 1);
         }
         const remainingMatchers = meldMatchers.slice(1);
-        const remainingMatches = MeldCombinationMatcher.tryMatch(remainingMatchers, remainingTiles);
+        const remainingMatches = MeldCombinationMatcher.tryMatch(
+          remainingMatchers,
+          remainingTiles,
+          existingMelds
+        );
         if (remainingMatches) {
           return [meld, ...remainingMatches];
         }
@@ -177,4 +239,3 @@ export class MeldCombinationMatcher implements CombinationMatcher {
     }
   }
 }
-
