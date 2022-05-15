@@ -25,7 +25,7 @@
   $: geometry = font
     ? new ShapeBufferGeometry(font.generateShapes(text, size))
     : undefined;
-  $: geometry && onGeometry(geometry);
+  $: geometry && onGeometry && onGeometry(geometry);
 
   const material = new MeshStandardMaterial({
     color: color,

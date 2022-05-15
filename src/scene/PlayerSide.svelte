@@ -24,7 +24,21 @@
   import TurnIndicator from "./turn-indicator/PlayerTurnIndicator.svelte";
   import TextButton from "./TextButton.svelte";
   import PlayerSideButtons from "./PlayerSideButtons.svelte";
+  import { HandPhase, WindowOfOpportunityPhase } from "../game-state/phases";
+  import { getValidWindowOfOpportunityActions } from "../game-state/action-generator";
+  import {
+    FormMeldAction,
+    isChowAction,
+    isKongAction,
+    isMahjongAction,
+    isPongAction,
+    isSkipAction,
+    MahjongAction,
+  } from "../game-state/actions";
+  import { Chow, Kong, Pong } from "../melds";
+  import { StandardMahjong } from "../tiles";
 
+  export let phase: HandPhase;
   export let player: ReadonlyPlayer;
   export let playerUi: PlayerUI;
   export let scene: Scene;
@@ -36,24 +50,96 @@
     ...player.bonusTiles,
     ...player.melds.flatMap((meld) => meld.tiles),
   ];
+  $: validWOPActions =
+    phase instanceof WindowOfOpportunityPhase
+      ? getValidWindowOfOpportunityActions(player, phase.discardedTile).filter(
+          (action) => phase.canExecuteAction(action)
+        )
+      : [];
+  $: phase instanceof WindowOfOpportunityPhase &&
+    console.debug(phase.discardedTile.value.toString());
+  $: player.wind === StandardMahjong.SUIT_EAST &&
+    console.debug(validWOPActions);
+  $: canChow = validWOPActions.some(isChowAction);
+  $: canPong = validWOPActions.some(isPongAction);
+  $: canKong = validWOPActions.some(isKongAction);
+  $: canMahjong = validWOPActions.some(isMahjongAction);
+  $: canSkip = validWOPActions.some(isSkipAction);
+  let subActions = [];
+
+  $: actions = [
+    ...(canSkip
+      ? [
+          {
+            name: "Skip",
+            onClick: () => {},
+          },
+        ]
+      : []),
+    ...(canChow
+      ? [
+          {
+            name: "Chow",
+            onClick: () => {
+              subActions = [
+                {
+                  name: "Back",
+                  onClick: () => {
+                    subActions = [];
+                  },
+                },
+              ];
+            },
+          },
+        ]
+      : []),
+    ...(canPong
+      ? [
+          {
+            name: "Pong",
+            onClick: () => {
+              phase.hand.tryExecuteAction(validWOPActions.find(isPongAction));
+              onUpdate();
+            },
+          },
+        ]
+      : []),
+    ...(canKong
+      ? [
+          {
+            name: "Kong",
+            onClick: () => {
+              phase.hand.tryExecuteAction(validWOPActions.find(isKongAction));
+              onUpdate();
+            },
+          },
+        ]
+      : []),
+    ...(canMahjong
+      ? [
+          {
+            name: "Win",
+            onClick: () => {
+              phase.hand.tryExecuteAction(
+                validWOPActions.find(isMahjongAction)
+              );
+              onUpdate();
+            },
+          },
+        ]
+      : []),
+  ];
+  $: player.wind === StandardMahjong.SUIT_EAST && console.debug(actions);
+  const buttonActions = subActions.length > 0 ? subActions : actions;
 </script>
 
 <Group {...$$restProps} {scene} let:parent>
-  {#if showControls}
+  {#if showControls && phase instanceof WindowOfOpportunityPhase}
     <PlayerSideButtons
       {scene}
       {parent}
-      size={2}
-      actions={[
-        {
-          name: "Chow",
-          onClick: () => {},
-        },
-        {
-          name: "Pong",
-          onClick: () => {},
-        },
-      ]}
+      size={1.5}
+      {actions}
       pos={new Vector3(0, -HAND_TO_TABLE_EDGE + TABLE_WIDTH / 2, 0.01)
         .add(
           new Vector3(
@@ -93,6 +179,7 @@
     pos={[0, 0, TILE_HEIGHT / 2]}
     onUpdate={() => {
       player = player;
+      phase = phase;
       onUpdate();
     }}
   />

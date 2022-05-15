@@ -8,8 +8,14 @@ import {
   MeldCombinationMatcher,
   PongMatcher,
 } from "./combi-utils";
-import type { Meld } from "./melds";
-import { HonorTile, NumberedTile, StandardMahjong, Tile } from "./tiles";
+import type { Meld, MeldInstance } from "./melds";
+import {
+  HonorTile,
+  NumberedTile,
+  StandardMahjong,
+  Tile,
+  TileInstance,
+} from "./tiles";
 
 export namespace StandardCombiMatchers {
   export const TRIPLETS_HAND = new MeldCombinationBuilder("Triplets Hand")
@@ -130,7 +136,10 @@ export namespace StandardCombiMatchers {
       this.matchers = matchers;
     }
 
-    getFirstMatch(tiles: Tile[], existingMelds: Meld[]): Combination | null {
+    getFirstMatch(
+      tiles: TileInstance<Tile>[],
+      existingMelds: MeldInstance<Meld>[]
+    ): Combination | null {
       for (const matcher of this.matchers) {
         const combination = matcher.getFirstMatch(tiles, existingMelds);
         if (combination) {
@@ -199,8 +208,8 @@ export namespace StandardCombiMatchers {
 }
 
 export const getMatchingCombinations = (
-  tiles: Tile[],
-  existingMelds: Meld[]
+  tiles: TileInstance<Tile>[],
+  existingMelds: MeldInstance<Meld>[]
 ): Combination[] => {
   const combinations: Combination[] = [];
 

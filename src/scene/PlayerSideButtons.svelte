@@ -29,9 +29,7 @@
       onClick={action.onClick}
       pos={action.pos}
       onLoad={() => {
-        console.debug("LOL");
-        console.debug(action.button.getWidth());
-        const width = action.button.getWidth();
+        const width = action.button?.getWidth() ?? 0;
         if (width !== action.buttonWidth) {
           action.buttonWidth = width;
 

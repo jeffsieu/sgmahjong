@@ -1,46 +1,84 @@
-import { Chow, EyePair, Meld, Pong } from "./melds";
-import { NumberedTile, StandardMahjong, Tile } from "./tiles";
+import { getCombinations } from "./game-state/action-generator";
+import { Chow, EyePair, Kong, Meld, MeldInstance, Pong } from "./melds";
+import { NumberedTile, StandardMahjong, Tile, TileInstance } from "./tiles";
 
 export class Combination {
   constructor(
     readonly name: string,
-    readonly melds: Meld[],
+    readonly melds: MeldInstance<Meld>[],
     readonly isWinning: boolean
   ) {}
 }
 
 export interface CombinationMatcher {
-  getFirstMatch(tiles: Tile[], existingMelds: Meld[]): Combination | null;
+  getFirstMatch(
+    tiles: TileInstance<Tile>[],
+    existingMelds: MeldInstance<Meld>[]
+  ): Combination | null;
   readonly combinationName: string;
   readonly isWinning: boolean;
 }
 
-export interface MeldMatcher {
+export abstract class MeldMatcher<M extends Meld> {
   readonly tileFilter?: (tile: Tile) => boolean;
-  getAllUniqueMatches(tiles: Tile[]): Set<Meld>;
+  abstract matches(meld: M): boolean;
+
+  abstract getTileMatches(tiles: Tile[]): Set<M>;
+
+  getTileInstanceMatches(
+    tileInstances: TileInstance<Tile>[]
+  ): Set<MeldInstance<M>> {
+    const matches = this.getTileMatches(
+      tileInstances.map((tile) => tile.value)
+    );
+
+    // Generate all combinations for each match
+    const combinations = new Set<MeldInstance<M>>();
+    for (const match of matches) {
+      const possibleTileInstances = match.tiles.map((tile) =>
+        tileInstances.filter((instance) => instance.value === tile)
+      );
+      const matchCombinations = getCombinations(possibleTileInstances);
+      for (const combination of matchCombinations) {
+        combinations.add(new MeldInstance(match, [...combination]));
+      }
+    }
+
+    return combinations;
+  }
 }
 
-export class ChowOrPongMatcher implements MeldMatcher {
+export class ChowOrPongMatcher extends MeldMatcher<Chow | Pong> {
   private readonly chowMatcher: ChowMatcher;
   private readonly pongMatcher: PongMatcher;
 
   constructor(readonly tileFilter?: (tile: Tile) => boolean) {
+    super();
     this.chowMatcher = new ChowMatcher(this.tileFilter);
     this.pongMatcher = new PongMatcher(this.tileFilter);
   }
 
-  getAllUniqueMatches(tiles: Tile[]): Set<Meld> {
-    return new Set([
-      ...this.chowMatcher.getAllUniqueMatches(tiles),
-      ...this.pongMatcher.getAllUniqueMatches(tiles),
+  getTileMatches(tiles: Tile[]): Set<Chow | Pong> {
+    console.log("Chow or Pong Matcher");
+    const result = new Set([
+      ...this.chowMatcher.getTileMatches(tiles),
+      ...this.pongMatcher.getTileMatches(tiles),
     ]);
+
+    return result;
+  }
+
+  matches(meld: Meld): boolean {
+    return this.chowMatcher.matches(meld) || this.pongMatcher.matches(meld);
   }
 }
 
-export class ChowMatcher implements MeldMatcher {
-  constructor(readonly tileFilter?: (tile: Tile) => boolean) {}
+export class ChowMatcher extends MeldMatcher<Chow> {
+  constructor(readonly tileFilter?: (tile: Tile) => boolean) {
+    super();
+  }
 
-  getAllUniqueMatches(tiles: Tile[]): Set<Chow> {
+  getTileMatches(tiles: Tile[]): Set<Chow> {
     const filteredTiles = this.tileFilter
       ? tiles.filter(this.tileFilter)
       : tiles;
@@ -66,24 +104,33 @@ export class ChowMatcher implements MeldMatcher {
           first.value + 1 === second.value &&
           second.value + 1 === third.value
         ) {
-          matches.add(new Chow([first, second, third]));
+          const tiles = [first, second, third];
+          matches.add(new Chow(tiles));
         }
       }
     }
 
     return matches;
   }
+
+  matches(meld: Meld): boolean {
+    return (
+      meld instanceof Chow &&
+      (!this.tileFilter || meld.tiles.every(this.tileFilter))
+    );
+  }
 }
 
-export class PongMatcher implements MeldMatcher {
-  constructor(readonly tileFilter?: (tile: Tile) => boolean) {}
+export class PongMatcher extends MeldMatcher<Pong> {
+  constructor(readonly tileFilter?: (tile: Tile) => boolean) {
+    super();
+  }
 
-  getAllUniqueMatches(tiles: Tile[]): Set<Pong> {
+  getTileMatches(tiles: Tile[]): Set<Pong> {
     const filteredTiles = this.tileFilter
       ? tiles.filter(this.tileFilter)
       : tiles;
     const appearCounts = new Map<Tile, number>();
-
     const matches = new Set<Pong>();
 
     for (const tile of filteredTiles) {
@@ -99,17 +146,25 @@ export class PongMatcher implements MeldMatcher {
 
     return matches;
   }
+
+  matches(meld: Meld): boolean {
+    return (
+      (meld instanceof Pong || meld instanceof Kong) &&
+      (!this.tileFilter || meld.tiles.every(this.tileFilter))
+    );
+  }
 }
 
-export class EyePairMatcher implements MeldMatcher {
-  constructor(readonly tileFilter?: (tile: Tile) => boolean) {}
+export class EyePairMatcher extends MeldMatcher<EyePair> {
+  constructor(readonly tileFilter?: (tile: Tile) => boolean) {
+    super();
+  }
 
-  getAllUniqueMatches(tiles: Tile[]): Set<EyePair> {
+  getTileMatches(tiles: Tile[]): Set<EyePair> {
     const filteredTiles = this.tileFilter
       ? tiles.filter(this.tileFilter)
       : tiles;
     const appearCounts = new Map<Tile, number>();
-
     const matches = new Set<EyePair>();
 
     for (const tile of filteredTiles) {
@@ -125,14 +180,21 @@ export class EyePairMatcher implements MeldMatcher {
 
     return matches;
   }
+
+  matches(meld: Meld): boolean {
+    return (
+      meld instanceof EyePair &&
+      (!this.tileFilter || meld.tiles.every(this.tileFilter))
+    );
+  }
 }
 
 export class MeldCombinationBuilder {
-  readonly melds: MeldMatcher[] = [];
+  readonly melds: MeldMatcher<Meld>[] = [];
 
   constructor(readonly combinationName: string) {}
 
-  withMeld(matcher: MeldMatcher): MeldCombinationBuilder {
+  withMeld(matcher: MeldMatcher<Meld>): MeldCombinationBuilder {
     this.melds.push(matcher);
     return this;
   }
@@ -152,11 +214,14 @@ export class MeldCombinationBuilder {
 export class MeldCombinationMatcher implements CombinationMatcher {
   constructor(
     readonly combinationName: string,
-    readonly melds: MeldMatcher[],
+    readonly melds: MeldMatcher<Meld>[],
     readonly isWinning: boolean
   ) {}
 
-  getFirstMatch(tiles: Tile[], existingMelds: Meld[]): Combination | null {
+  getFirstMatch(
+    tiles: TileInstance<Tile>[],
+    existingMelds: MeldInstance<Meld>[]
+  ): Combination | null {
     // Recursively try all possible combinations of melds
     const melds = MeldCombinationMatcher.tryMatch(
       this.melds,
@@ -171,10 +236,10 @@ export class MeldCombinationMatcher implements CombinationMatcher {
   }
 
   private static tryMatch(
-    meldMatchers: MeldMatcher[],
-    tiles: Tile[],
-    existingMelds: Meld[]
-  ): Meld[] | null {
+    meldMatchers: MeldMatcher<Meld>[],
+    tiles: TileInstance<Tile>[],
+    existingMelds: MeldInstance<Meld>[]
+  ): MeldInstance<Meld>[] | null {
     if (
       meldMatchers.length === 0 &&
       tiles.length === 0 &&
@@ -189,12 +254,11 @@ export class MeldCombinationMatcher implements CombinationMatcher {
       // Try to match the first existing meld first
       const meld = existingMelds[0];
 
-      const remainingExistingMelds = [...existingMelds];
-      remainingExistingMelds.splice(remainingExistingMelds.indexOf(meld), 1);
+      const remainingExistingMelds = existingMelds.slice(1);
 
       for (const meldMatcher of meldMatchers) {
-        const meldMatches = meldMatcher.getAllUniqueMatches(meld.tiles);
-        if (meldMatches.size === 0) {
+        const meldMatches = meldMatcher.matches(meld.value);
+        if (!meldMatches) {
           continue;
         }
 
@@ -211,10 +275,11 @@ export class MeldCombinationMatcher implements CombinationMatcher {
           return [meld, ...remainingMatches];
         }
       }
+      return null;
     } else {
       // Try to match the first meld
       const meldMatcher = meldMatchers[0];
-      const matches = meldMatcher.getAllUniqueMatches(tiles);
+      const matches = meldMatcher.getTileInstanceMatches(tiles);
 
       if (tiles.length === 0) {
         return null;

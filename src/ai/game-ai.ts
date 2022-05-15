@@ -14,7 +14,7 @@ import {
   ToDrawPhase,
   WindowOfOpportunityPhase,
 } from "../game-state/phases";
-import { BonusTile, HonorTile } from "../tiles";
+import { BonusTile, HonorTile, TileInstance } from "../tiles";
 
 export const getBestAction = (
   currentPhase: ReadonlyHandPhase,
@@ -23,7 +23,10 @@ export const getBestAction = (
   if (currentPhase instanceof PostDrawPhase && player.hasBonusTileInHand()) {
     return new RevealBonusTileThenDrawAction(
       player,
-      player.hand.find((tile): tile is BonusTile => tile instanceof BonusTile)
+      player.hand.find(
+        (tile): tile is TileInstance<BonusTile> =>
+          tile.value instanceof BonusTile
+      )
     );
   }
 
@@ -54,7 +57,10 @@ export const getBestAction = (
     if (player.hasBonusTileInHand()) {
       return new RevealBonusTileThenDrawAction(
         player,
-        player.hand.find((tile): tile is BonusTile => tile instanceof BonusTile)
+        player.hand.find(
+          (tile): tile is TileInstance<BonusTile> =>
+            tile.value instanceof BonusTile
+        )
       );
     }
     return new DiscardTileAction(
@@ -74,9 +80,9 @@ const chooseBestTileToDiscard = (
 
   // Calculate tiles required to form a meld
   const honorTilesRequired: Map<HonorTile, number> = new Map();
-  const handHonorTiles = player.hand.filter(
-    (tile): tile is HonorTile => tile instanceof HonorTile
-  );
+  const handHonorTiles = player.hand
+    .map((instance) => instance.value)
+    .filter((tile): tile is HonorTile => tile instanceof HonorTile);
   for (const honorTile of handHonorTiles) {
     if (!honorTilesRequired.has(honorTile)) {
       honorTilesRequired.set(honorTile, 2);
@@ -85,9 +91,9 @@ const chooseBestTileToDiscard = (
     }
   }
 
-  const revealedHonorTiles = revealedTiles.filter(
-    (tile): tile is HonorTile => tile instanceof HonorTile
-  );
+  const revealedHonorTiles = revealedTiles
+    .map((instance) => instance.value)
+    .filter((tile): tile is HonorTile => tile instanceof HonorTile);
 
   const waitingHonorTiles = handHonorTiles.filter(
     (honorTile) => honorTilesRequired.get(honorTile) > 0
@@ -99,7 +105,7 @@ const chooseBestTileToDiscard = (
       (tile) => tile === waitingHonorTile
     ).length;
     if (revealedCount >= requiredCount) {
-      return player.hand.indexOf(waitingHonorTile);
+      return player.hand.findIndex((tile) => tile.value === waitingHonorTile);
     }
   }
 

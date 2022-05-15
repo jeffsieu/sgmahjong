@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Tile } from "../tiles";
+  import type { Tile, TileInstance } from "../tiles";
   import TileMesh from "./TileMesh.svelte";
   import { TILE_HEIGHT, TILE_THICKNESS, TILE_WIDTH } from "./constants";
   import { Empty } from "svelthree";
@@ -7,7 +7,7 @@
   import Group from "../svelthree-patch/Group.svelte";
 
   export let scene: Scene;
-  export let tiles: Tile[];
+  export let tiles: TileInstance<Tile>[];
   export let faceUp: boolean;
   export let highlight: boolean = false;
 
@@ -17,7 +17,7 @@
 </script>
 
 <Group {scene} {...$$restProps} let:parent>
-  {#each tiles as tile, index ((tile ? tile.toString() : "") + index)}
+  {#each tiles as tile, index ((tile ? tile.value.toString() : "") + index)}
     <TileMesh
       {scene}
       {parent}

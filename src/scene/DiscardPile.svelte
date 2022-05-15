@@ -7,15 +7,15 @@
   import type { Scene } from "svelthree-three";
   import { Empty } from "svelthree";
   import TileRow from "./TileRow.svelte";
-  import type { Tile } from "../tiles";
+  import type { Tile, TileInstance } from "../tiles";
 
   export let scene: Scene;
-  export let tiles: Tile[];
+  export let tiles: TileInstance<Tile>[];
 
   $: tileRows = Array.from(
     { length: Math.ceil(tiles.length / DISCARD_PILE_ROW_LENGTH) },
     (_, rowIndex) => {
-      const row: Tile[] = tiles.slice(
+      const row: TileInstance<Tile>[] = tiles.slice(
         rowIndex * DISCARD_PILE_ROW_LENGTH,
         (rowIndex + 1) * DISCARD_PILE_ROW_LENGTH
       );

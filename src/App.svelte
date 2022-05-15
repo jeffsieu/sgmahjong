@@ -1,7 +1,7 @@
 <script lang="ts">
   import { StandardMahjong } from "./tiles";
-  import { Round } from "./game-state/game-state";
-  import { getMatchingCombinations } from "./combis";
+  import { Round, SeatedPlayer } from "./game-state/game-state";
+  import { getMatchingCombinations, StandardCombiMatchers } from "./combis";
 
   import {
     Canvas,
@@ -44,8 +44,12 @@
     RevealBonusTileThenDrawAction,
   } from "./game-state/actions";
   import { PhysicalWall, PreGameDiceRoll } from "./game-state/pre-hand";
-  import { getValidWindowOfOpportunityActions } from "./game-state/action-generator";
-  import { Chow } from "./melds";
+  import {
+    getValidWindowOfOpportunityActions,
+    getValidMahjongActions,
+    getCombinations,
+  } from "./game-state/action-generator";
+  import { Chow, MeldInstance, Pong } from "./melds";
   import { getBestAction } from "./ai/game-ai";
   import { TileDebug } from "./tile-utils";
   import Text from "./scene/Text.svelte";
@@ -113,18 +117,21 @@
     )) {
       const action = getBestAction(currentPhase, player);
 
-      console.log("Trying to execute action", action);
+      console.debug("Trying to execute action", action);
       try {
         currentHand.tryExecuteAction(action);
         updateState();
         executed = true;
-      } catch (e) {}
+        console.debug("Successfully executed one action");
+      } catch (e) {
+        console.debug("Got error: ", e);
+      }
     }
-    if (currentPhase instanceof WindowOfOpportunityPhase) {
-      currentHand.tryExecuteAction(new CloseWindowOfOpportunityAction());
-      updateState();
-      executed = true;
-    }
+    // if (currentHand.getCurrentPhase() instanceof WindowOfOpportunityPhase) {
+    //   currentHand.tryExecuteAction(new CloseWindowOfOpportunityAction());
+    //   updateState();
+    //   executed = true;
+    // }
     return executed;
   };
 
@@ -133,9 +140,11 @@
       const executed = useAI();
       currentPhase = currentHand.getCurrentPhase();
       updateState();
-      console.log("Executed one action");
       if (!executed) {
+        console.debug("No actions executed");
         break;
+      } else {
+        console.debug("Executed one action");
       }
       if (
         currentPhase instanceof WindowOfOpportunityPhase &&
@@ -159,17 +168,7 @@
         break;
       }
 
-      if (
-        currentPhase instanceof PostDrawPhase
-        // currentPhase.canExecuteAction(
-        //   new RevealBonusTileThenDrawAction(
-        //     player,
-        //     player.hand.find(
-        //       (tile): tile is BonusTile => tile instanceof BonusTile
-        //     )
-        //   )
-        // )
-      ) {
+      if (currentPhase instanceof PostDrawPhase) {
         break;
       }
     }
@@ -193,6 +192,8 @@
     light.getLight().shadow.camera.near = 0.5;
     light.getLight().shadow.camera.far = 500;
 
+    const webGlRenderer = renderer.getRenderer();
+
     // if (renderer.getRenderer())
     // renderer.getRenderer().physicallyCorrectLights = true;
   });
@@ -213,6 +214,28 @@
   };
 
   setContext(KEY_CANVAS_CONTEXT, canvasContext);
+
+  const fakePlayer = new SeatedPlayer(currentHand, StandardMahjong.SUIT_EAST, [
+    TileDebug.bamboos(1),
+    TileDebug.bamboos(1),
+    TileDebug.bamboos(1),
+    TileDebug.bamboos(2),
+    TileDebug.bamboos(3),
+    TileDebug.bamboos(4),
+    TileDebug.bamboos(5),
+    TileDebug.bamboos(6),
+    TileDebug.bamboos(7),
+    TileDebug.bamboos(8),
+    TileDebug.bamboos(9),
+    TileDebug.bamboos(9),
+    TileDebug.bamboos(9),
+  ]);
+  const oneBamboo = TileDebug.bamboos(1);
+  const threes = [
+    TileDebug.bamboos(3),
+    TileDebug.bamboos(3),
+    TileDebug.bamboos(3),
+  ];
 </script>
 
 <main>
@@ -221,7 +244,14 @@
     <h3>Dice roll results: {currentHand.diceRoll.resultSum}</h3>
   </div>
   <button on:click={cheat}>Cheat</button>
-  <button on:click={skipToMyTurn}>Use AI</button>
+  <button on:click={useAI}>Use AI</button>
+  <button
+    on:click={() => {
+      console.debug(getCombinations([threes, threes, threes]));
+      const match = getValidWindowOfOpportunityActions(fakePlayer, oneBamboo);
+      console.debug(match);
+    }}>Test method</button
+  >
 
   <div>
     <h3>Messages ({logMessages.length})</h3>
@@ -253,7 +283,6 @@
             >
               {#if action instanceof FormMeldAction}
                 {action.meld instanceof Chow ? "Chow" : "Pong"} ({action.meld.toString()}
-                {action.meld instanceof Chow ? action.revealedPositions : ""})
               {/if}
               {#if action instanceof MahjongAction}
                 Mahjong
@@ -286,7 +315,7 @@
         h={windowHeight * 0.75}
         interactive
       >
-        <Scene {sti} let:scene id="scene1" props={{ background: 0xedf2f7 }}>
+        <Scene {sti} let:scene id="scene1" props={{ background: 0x242424 }}>
           <PerspectiveCamera
             bind:this={camera}
             {scene}
@@ -304,7 +333,7 @@
           <PointLight
             {scene}
             pos={[0, 0, TILE_HEIGHT * 3]}
-            intensity={0.3}
+            intensity={0.5}
             castShadow
             shadowBias={0.0001}
             bind:this={light}

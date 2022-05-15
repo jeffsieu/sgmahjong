@@ -1,6 +1,6 @@
 import type { ReadonlyPlayer, Hand } from "./game-state";
-import type { BonusTile, Tile } from "../tiles";
-import { Meld, Pong } from "../melds";
+import type { BonusTile, Tile, TileInstance } from "../tiles";
+import { Kong, Meld, MeldInstance, Pong } from "../melds";
 import type { Combination } from "../combi-utils";
 
 export interface HandAction {
@@ -17,7 +17,10 @@ export class DrawTileAction implements HandAction {
 }
 
 export class RevealBonusTileThenDrawAction implements HandAction {
-  constructor(readonly player: ReadonlyPlayer, readonly bonusTile: BonusTile) {}
+  constructor(
+    readonly player: ReadonlyPlayer,
+    readonly bonusTile: TileInstance<BonusTile>
+  ) {}
 
   execute(hand: Hand): void {
     const player = hand.getPlayerWithWind(this.player.wind);
@@ -28,7 +31,7 @@ export class RevealBonusTileThenDrawAction implements HandAction {
 export class DiscardTileAction implements HandAction {
   constructor(readonly player: ReadonlyPlayer, readonly position: number) {}
 
-  execute(hand: Hand): Tile {
+  execute(hand: Hand): TileInstance<Tile> {
     const player = hand.getPlayerWithWind(this.player.wind);
     return player.discardToPile(this.position);
   }
@@ -46,40 +49,50 @@ export abstract class PlayerWindowOfOpportunityAction extends WindowOfOpportunit
 
 export class FormMeldAction extends PlayerWindowOfOpportunityAction {
   readonly priority: number;
-  readonly revealedPositions: number[];
 
   constructor(
     readonly player: ReadonlyPlayer,
-    readonly meld: Meld,
-    readonly discardedTile: Tile,
-    revealedPositions: Set<number>
+    readonly meld: MeldInstance<Meld>,
+    readonly discardedTile: TileInstance<Tile>
   ) {
     super(player);
-    this.priority = meld instanceof Pong ? 2 : 1;
-    this.revealedPositions = Array.from(revealedPositions);
-    this.revealedPositions.sort((a, b) => a - b);
+    this.priority = meld.value instanceof Pong ? 2 : 1;
   }
 
   execute(hand: Hand): void {
-    for (let i = this.revealedPositions.length - 1; i >= 0; i--) {
-      const position = this.revealedPositions[i];
+    for (const tile of this.meld.tiles) {
+      const position = this.player.hand.indexOf(tile);
       this.player.hand.splice(position, 1);
     }
-
-    console.log("revealedPositions", this.revealedPositions);
-    console.log("New hand length: " + this.player.hand.length);
 
     this.player.melds.push(this.meld);
     hand.discardPile.pop();
   }
 }
 
+export const isChowAction = (action: HandAction): action is FormMeldAction =>
+  action instanceof FormMeldAction && action.meld.value instanceof Meld;
+
+export const isPongAction = (action: HandAction): action is FormMeldAction =>
+  action instanceof FormMeldAction && action.meld.value instanceof Pong;
+
+export const isKongAction = (action: HandAction): action is FormMeldAction =>
+  action instanceof FormMeldAction && action.meld.value instanceof Kong;
+
+export const isMahjongAction = (action: HandAction): action is MahjongAction =>
+  action instanceof MahjongAction;
+
+export const isSkipAction = (
+  action: HandAction
+): action is SkipWindowOfOpportunityAction =>
+  action instanceof SkipWindowOfOpportunityAction;
+
 export class MahjongAction extends PlayerWindowOfOpportunityAction {
   readonly priority: number;
 
   constructor(
     readonly player: ReadonlyPlayer,
-    readonly discardedTile: Tile,
+    readonly discardedTile: TileInstance<Tile>,
     readonly winningCombination: Combination
   ) {
     super(player);
@@ -87,13 +100,10 @@ export class MahjongAction extends PlayerWindowOfOpportunityAction {
   }
 
   execute(hand: Hand): void {
+    console.debug("executing mahjong action");
     this.player.hand.splice(0, this.player.hand.length);
     for (const meld of this.winningCombination.melds) {
-      if (
-        this.player.melds.every(
-          (existingMeld) => !existingMeld.meldEquals(meld)
-        )
-      ) {
+      if (!this.player.melds.includes(meld)) {
         this.player.melds.push(meld);
       }
     }

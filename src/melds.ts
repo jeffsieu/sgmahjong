@@ -1,4 +1,8 @@
-import type { Tile } from "./tiles";
+import type { Tile, TileInstance } from "./tiles";
+
+export class MeldInstance<M extends Meld> {
+  constructor(readonly value: M, readonly tiles: TileInstance<Tile>[]) {}
+}
 
 export abstract class Meld {
   constructor(readonly tiles: Tile[]) {}
@@ -10,7 +14,9 @@ export abstract class Meld {
   }
 }
 
-export class Chow extends Meld {
+export abstract class ThreeTileMeld extends Meld {}
+
+export class Chow extends ThreeTileMeld {
   constructor(tiles: Tile[]) {
     super(tiles);
   }
@@ -23,13 +29,30 @@ export class Chow extends Meld {
   }
 }
 
-export class Pong extends Meld {
+export class Pong extends ThreeTileMeld {
   constructor(tile: Tile) {
     super([tile, tile, tile]);
   }
 
   meldEquals(other: Meld): boolean {
     if (!(other instanceof Pong)) {
+      return false;
+    }
+    return this.tiles.every((tile) => other.tiles.includes(tile));
+  }
+}
+
+export class Kong extends Meld {
+  constructor(tile: Tile) {
+    super([tile, tile, tile, tile]);
+  }
+
+  toPong(): Pong {
+    return new Pong(this.tiles[0]);
+  }
+
+  meldEquals(other: Meld): boolean {
+    if (!(other instanceof Kong)) {
       return false;
     }
     return this.tiles.every((tile) => other.tiles.includes(tile));

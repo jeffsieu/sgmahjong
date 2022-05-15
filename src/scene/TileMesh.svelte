@@ -18,14 +18,19 @@
     WireframeGeometry,
     EdgesGeometry,
   } from "svelthree-three";
-  import type { Tile } from "../tiles";
-  import { TILE_HEIGHT, TILE_THICKNESS, TILE_WIDTH } from "./constants";
+  import type { Tile, TileInstance } from "../tiles";
+  import {
+    TILE_COLOR_FACE,
+    TILE_HEIGHT,
+    TILE_THICKNESS,
+    TILE_WIDTH,
+  } from "./constants";
 
   import { getTexture } from "./texture-utils";
   import { afterUpdate, onMount } from "svelte";
 
   export let scene: Scene;
-  export let tile: Tile = null;
+  export let tile: TileInstance<Tile> = null;
   export let onPointerOut: (event: CustomEvent) => void = null;
   export let onPointerOver: (event: CustomEvent) => void = null;
   export let onClick: (event: CustomEvent) => void = null;
@@ -82,7 +87,7 @@
   const tileWireframeGeometry = new EdgesGeometry(fullTileGeometry);
 
   let whiteTileFace = new MeshStandardMaterial({
-    color: 0xffffff,
+    color: TILE_COLOR_FACE,
     roughness: 0.5,
     metalness: 0.5,
   });
@@ -90,9 +95,10 @@
   // Define a material with the image only on the front face
   let face = tile
     ? new MeshStandardMaterial({
-        map: getTexture(tile),
-        roughness: 0.5,
+        map: getTexture(tile.value),
+        roughness: 0.1,
         metalness: 0.5,
+        color: TILE_COLOR_FACE,
       })
     : whiteTileFace;
 
@@ -125,7 +131,7 @@
     material.clone()
   );
   highlightedTileMaterial.forEach(
-    (mat) => (mat.color = mat.color.lerp(new Color(0xffffff), 0.5))
+    (mat) => (mat.color = mat.color.lerp(new Color(TILE_COLOR_FACE), 0.5))
   );
 
   let tileMaterial = baseTileMaterial;

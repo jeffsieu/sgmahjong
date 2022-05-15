@@ -4,7 +4,7 @@ export namespace MessageLogger {
   const logEntries: LogEntry[] = [];
 
   export const log = (logEntry: LogEntry): void => {
-    console.log(logEntry.message);
+    console.debug(logEntry.message);
     logEntries.push(logEntry);
   };
 

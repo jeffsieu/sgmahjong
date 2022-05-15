@@ -1,8 +1,9 @@
 import type { Hand, ReadonlyHand, ReadonlyPlayer } from "./game-state";
-import { BonusTile, StandardMahjong, Tile } from "../tiles";
+import { BonusTile, StandardMahjong, Tile, TileInstance } from "../tiles";
 import {
   CloseWindowOfOpportunityAction,
   DiscardTileAction,
+  DrawTileAction,
   FormMeldAction,
   HandAction,
   MahjongAction,
@@ -54,8 +55,8 @@ export abstract class PlayerControlledPhase extends HandPhase {
 
 export class PostDrawPhase extends PlayerControlledPhase {
   name = `Post Draw (${this.index + 1})`;
-  tilesToShow: BonusTile[] = this.player.hand.filter(
-    (tile): tile is BonusTile => tile instanceof BonusTile
+  tilesToShow: TileInstance<BonusTile>[] = this.player.hand.filter(
+    (tile): tile is TileInstance<BonusTile> => tile.value instanceof BonusTile
   );
 
   constructor(
@@ -109,7 +110,9 @@ export class PostDrawPhase extends PlayerControlledPhase {
     } else if (
       this.hand
         .getOrderedPlayersFrom(StandardMahjong.SUIT_EAST)
-        .map((player) => player.hand.some((tile) => tile instanceof BonusTile))
+        .map((player) =>
+          player.hand.some((tile) => tile.value instanceof BonusTile)
+        )
         .some((hasBonusTile) => hasBonusTile)
     ) {
       // Initiate another post draw phase if there are still bonus tiles left.
@@ -130,7 +133,7 @@ export class PostDrawPhase extends PlayerControlledPhase {
 
 export class ToDiscardPhase extends PlayerControlledPhase {
   name = `To Discard (${this.player.wind.name})`;
-  discardedTile: Tile | undefined;
+  discardedTile: TileInstance<Tile> | undefined;
 
   getErrorForAction(action: HandAction): Error | null {
     const superError = super.getErrorForAction(action);
@@ -150,7 +153,7 @@ export class ToDiscardPhase extends PlayerControlledPhase {
 
   tryExecuteAction(action: HandAction): void {
     const error = this.getErrorForAction(action);
-    if (error !== null) {
+    if (error) {
       throw error;
     }
 
@@ -161,7 +164,7 @@ export class ToDiscardPhase extends PlayerControlledPhase {
       const tile = action.execute(this.hand);
 
       if (action instanceof DiscardTileAction) {
-        this.discardedTile = tile as Tile;
+        this.discardedTile = tile as TileInstance<Tile>;
       }
     }
   }
@@ -184,10 +187,23 @@ export class ToDrawPhase extends PlayerControlledPhase {
 
   tryExecuteAction(action: HandAction): void {
     const error = this.getErrorForAction(action);
-    if (error !== null) {
+    if (error) {
       throw error;
     }
     action.execute(this.hand);
+  }
+
+  getErrorForAction(action: HandAction): Error | null {
+    const superError = super.getErrorForAction(action);
+    if (superError) {
+      return superError;
+    }
+
+    if (!(action instanceof DrawTileAction)) {
+      return new Error("Invalid action.");
+    }
+
+    return null;
   }
 
   isCompleted(): boolean {
@@ -211,7 +227,7 @@ export class WindowOfOpportunityPhase extends HandPhase {
   constructor(
     readonly hand: Hand,
     readonly player: ReadonlyPlayer,
-    readonly discardedTile: Tile
+    readonly discardedTile: TileInstance<Tile>
   ) {
     super(hand);
     for (const player of this.hand
@@ -232,8 +248,6 @@ export class WindowOfOpportunityPhase extends HandPhase {
       return;
     }
 
-    console.log("Setting action for player: ", action.player.wind.name);
-
     this.actions.set(action.player, action as PlayerWindowOfOpportunityAction);
   }
 
@@ -248,7 +262,7 @@ export class WindowOfOpportunityPhase extends HandPhase {
 
     if (
       action instanceof FormMeldAction &&
-      action.meld instanceof Chow &&
+      action.meld.value instanceof Chow &&
       this.hand.getPlayerAfter(this.player) !== action.player
     ) {
       return new Error(
@@ -262,12 +276,13 @@ export class WindowOfOpportunityPhase extends HandPhase {
   private close() {
     this.isClosed = true;
 
-    console.log("Closing window of opportunity.");
+    console.debug("Closing window of opportunity.");
 
     // Get the action with the highest priority
     const actions = Array.from(this.actions.values());
-    const highestPriorityAction = actions.reduce(
-      (highestPriorityAction, action) => {
+    const highestPriorityAction = actions
+      .filter((action) => action !== null)
+      .reduce((highestPriorityAction, action) => {
         if (
           highestPriorityAction === null ||
           action.priority > highestPriorityAction.priority
@@ -275,12 +290,10 @@ export class WindowOfOpportunityPhase extends HandPhase {
           return action;
         }
         return highestPriorityAction;
-      },
-      null
-    );
+      }, null);
 
-    console.log("Highest priority action:");
-    console.log(highestPriorityAction);
+    console.debug("Highest priority action:");
+    console.debug(highestPriorityAction);
 
     // If all players skipped, no action was executed.
     if (

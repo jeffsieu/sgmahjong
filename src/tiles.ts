@@ -28,6 +28,10 @@ export namespace TileSetHelpers {
   };
 }
 
+export class TileInstance<T extends Tile> {
+  constructor(readonly value: T) {}
+}
+
 export abstract class Tile {
   constructor(readonly suit: Suit) {
     this.suit = suit;
@@ -161,7 +165,7 @@ export namespace StandardMahjong {
 
   export const SUIT_NON_NUMBERED = [...SUIT_HONORS, ...SUIT_FLOWERS];
 
-  export const TILE_SET: Tile[] = [
+  export const TILE_SET: TileInstance<Tile>[] = [
     ...[
       ...StandardMahjong.SUIT_NUMBERED.flatMap(
         TileSetHelpers.createNumberedTiles
@@ -170,7 +174,7 @@ export namespace StandardMahjong {
       ...StandardMahjong.SUIT_DRAGONS.map((dragon) => new DragonTile(dragon)),
     ].flatMap(TileSetHelpers.createFourOfTile),
     ...StandardMahjong.SUIT_FLOWERS.flatMap(TileSetHelpers.createFlowerTiles),
-  ];
+  ].map((tile) => new TileInstance(tile));
 }
 
 export namespace SingaporeMahjong {
@@ -194,8 +198,10 @@ export namespace SingaporeMahjong {
     }
   }
 
-  export const TILE_SET: Tile[] = [
+  export const TILE_SET: TileInstance<Tile>[] = [
     ...StandardMahjong.TILE_SET,
-    ...ANIMALS.map((animal) => new AnimalTile(SUIT_ANIMALS, animal)),
+    ...ANIMALS.map((animal) => new AnimalTile(SUIT_ANIMALS, animal)).map(
+      (tile) => new TileInstance(tile)
+    ),
   ];
 }

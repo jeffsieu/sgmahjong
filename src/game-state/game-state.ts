@@ -1,18 +1,19 @@
 import type { PlayerUI } from "../controls/hand-control";
 import type { HandAction } from "./actions";
 import { HandPhase, PostDrawPhase } from "./phases";
-import type { Meld } from "../melds";
+import type { Meld, MeldInstance } from "../melds";
 import {
   BonusTile,
   SingaporeMahjong,
   StandardMahjong,
   Tile,
+  TileInstance,
   Wind,
 } from "../tiles";
 import { PhysicalWall, PreGameDiceRoll } from "./pre-hand";
 
 export class Wall {
-  readonly tiles: Tile[];
+  readonly tiles: TileInstance<Tile>[];
 
   constructor() {
     this.tiles = [...SingaporeMahjong.TILE_SET];
@@ -24,11 +25,11 @@ export class Wall {
     }
   }
 
-  draw(): Tile {
+  draw(): TileInstance<Tile> {
     return this.tiles.pop();
   }
 
-  drawReplacement(): Tile {
+  drawReplacement(): TileInstance<Tile> {
     return this.tiles.splice(0, 1)[0];
   }
 }
@@ -36,40 +37,42 @@ export class Wall {
 export interface ReadonlyPlayer {
   readonly gameHand: Hand;
   readonly wind: Wind;
-  readonly bonusTiles: BonusTile[];
-  readonly melds: Meld[];
-  readonly hand: Tile[];
+  readonly bonusTiles: TileInstance<BonusTile>[];
+  readonly melds: MeldInstance<Meld>[];
+  readonly hand: TileInstance<Tile>[];
 
   hasBonusTileInHand(): boolean;
 }
 
 export class SeatedPlayer implements ReadonlyPlayer {
-  readonly bonusTiles: BonusTile[] = [];
-  readonly melds: Meld[] = [];
+  readonly bonusTiles: TileInstance<BonusTile>[] = [];
+  readonly melds: MeldInstance<Meld>[] = [];
 
   constructor(
     readonly gameHand: Hand,
     readonly wind: Wind,
-    readonly hand: Tile[]
+    readonly hand: TileInstance<Tile>[]
   ) {
-    this.hand.sort((a, b) => a.toString().localeCompare(b.toString()));
+    this.hand.sort((a, b) =>
+      a.value.toString().localeCompare(b.value.toString())
+    );
   }
 
   hasBonusTileInHand(): boolean {
-    return this.hand.some((tile) => tile instanceof BonusTile);
+    return this.hand.some((tile) => tile.value instanceof BonusTile);
   }
 
   removeFromHand(position: number): void {
     const tile = this.hand[position];
 
-    if (tile instanceof BonusTile) {
-      this.revealBonusTileAndDrawReplacement(tile);
+    if (tile.value instanceof BonusTile) {
+      this.revealBonusTileAndDrawReplacement(tile as TileInstance<BonusTile>);
     } else {
       this.discardToPile(position);
     }
   }
 
-  discardToPile(position: number): Tile {
+  discardToPile(position: number): TileInstance<Tile> {
     const discarded = this.hand.splice(position, 1)[0];
     if (this.hasBonusTileInHand()) {
       throw new Error(
@@ -84,10 +87,12 @@ export class SeatedPlayer implements ReadonlyPlayer {
   drawFromWall(): void {
     const tile = this.gameHand.draw();
     this.hand.push(tile);
-    this.hand.sort((a, b) => a.toString().localeCompare(b.toString()));
+    this.hand.sort((a, b) =>
+      a.value.toString().localeCompare(b.value.toString())
+    );
   }
 
-  revealBonusTileAndDrawReplacement(bonusTile: BonusTile): void {
+  revealBonusTileAndDrawReplacement(bonusTile: TileInstance<BonusTile>): void {
     this.hand.splice(this.hand.indexOf(bonusTile), 1);
     this.bonusTiles.push(bonusTile);
 
@@ -117,7 +122,7 @@ export interface ReadonlyHand {
   readonly diceRoll: PreGameDiceRoll;
   readonly physicalWall: PhysicalWall;
   readonly players: SeatedPlayer[];
-  readonly discardPile: Tile[];
+  readonly discardPile: TileInstance<Tile>[];
 }
 
 export class Hand implements PlayerUI, ReadonlyHand {
@@ -125,7 +130,7 @@ export class Hand implements PlayerUI, ReadonlyHand {
   readonly diceRoll = new PreGameDiceRoll();
   readonly physicalWall = new PhysicalWall(this.diceRoll);
   readonly players: SeatedPlayer[];
-  readonly discardPile: Tile[] = [];
+  readonly discardPile: TileInstance<Tile>[] = [];
   private isOver: boolean = false;
   private currentPhase: HandPhase;
 
@@ -198,7 +203,7 @@ export class Hand implements PlayerUI, ReadonlyHand {
     return this.players[(index + 1) % 4];
   }
 
-  getRevealedTiles(): Tile[] {
+  getRevealedTiles(): TileInstance<Tile>[] {
     const meldTiles = this.players.flatMap((player) =>
       player.melds.flatMap((meld) => meld.tiles)
     );
@@ -206,12 +211,12 @@ export class Hand implements PlayerUI, ReadonlyHand {
     return [...meldTiles, ...bonusTiles, ...this.discardPile];
   }
 
-  draw(): Tile {
+  draw(): TileInstance<Tile> {
     this.physicalWall.popFront();
     return this.wall.draw();
   }
 
-  drawReplacement(): Tile {
+  drawReplacement(): TileInstance<Tile> {
     this.physicalWall.popBack();
     return this.wall.drawReplacement();
   }

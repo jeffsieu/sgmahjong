@@ -26,6 +26,7 @@
   import { PlayerControlledPhase } from "../game-state/phases";
   import CenterTurnIndicator from "./turn-indicator/CenterTurnIndicator.svelte";
   import TextButton from "./TextButton.svelte";
+  import { StandardMahjong } from "../tiles";
 
   export let hand: Hand;
   export let scene: Scene;
@@ -53,6 +54,7 @@
     {scene}
     {geometry}
     {material}
+    pos={[0, 0, -0.01]}
     receiveShadow
     mat={{ roughness: 1, metalness: 0, side: DoubleSide }}
   />
@@ -78,7 +80,8 @@
       {scene}
       {player}
       {parent}
-      showControls={index === 0}
+      phase={currentPhase}
+      showControls={player.wind === StandardMahjong.SUIT_EAST}
       hasTurnControl={currentPhase instanceof PlayerControlledPhase &&
         currentPhase.player === player}
       playerUi={currentHand}
