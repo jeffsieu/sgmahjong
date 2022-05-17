@@ -1,12 +1,14 @@
 import { getCombinations } from "./game-state/action-generator";
 import { Chow, EyePair, Kong, Meld, MeldInstance, Pong } from "./melds";
+import type { DoubleProvider } from "./scoring/scoring";
 import { NumberedTile, StandardMahjong, Tile, TileInstance } from "./tiles";
 
 export class Combination {
   constructor(
     readonly name: string,
     readonly melds: MeldInstance<Meld>[],
-    readonly isWinning: boolean
+    readonly isWinning: boolean,
+    readonly getDoubles: DoubleProvider
   ) {}
 }
 
@@ -59,7 +61,6 @@ export class ChowOrPongMatcher extends MeldMatcher<Chow | Pong> {
   }
 
   getTileMatches(tiles: Tile[]): Set<Chow | Pong> {
-    console.log("Chow or Pong Matcher");
     const result = new Set([
       ...this.chowMatcher.getTileMatches(tiles),
       ...this.pongMatcher.getTileMatches(tiles),
@@ -199,14 +200,15 @@ export class MeldCombinationBuilder {
     return this;
   }
 
-  build(isWinning: boolean): CombinationMatcher {
+  build(isWinning: boolean, getDoubles: DoubleProvider): CombinationMatcher {
     if (this.melds.length !== 5) {
       throw new Error("MeldCombinationBuilder must have 5 meld matchers");
     }
     return new MeldCombinationMatcher(
       this.combinationName,
       this.melds,
-      isWinning
+      isWinning,
+      getDoubles
     );
   }
 }
@@ -215,7 +217,8 @@ export class MeldCombinationMatcher implements CombinationMatcher {
   constructor(
     readonly combinationName: string,
     readonly melds: MeldMatcher<Meld>[],
-    readonly isWinning: boolean
+    readonly isWinning: boolean,
+    readonly getDoubles: DoubleProvider
   ) {}
 
   getFirstMatch(
@@ -229,7 +232,12 @@ export class MeldCombinationMatcher implements CombinationMatcher {
       existingMelds
     );
     if (melds) {
-      return new Combination(this.combinationName, melds, this.isWinning);
+      return new Combination(
+        this.combinationName,
+        melds,
+        this.isWinning,
+        this.getDoubles
+      );
     } else {
       return null;
     }

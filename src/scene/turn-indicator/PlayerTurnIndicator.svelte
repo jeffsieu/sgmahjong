@@ -3,7 +3,6 @@
   import type { Scene } from "svelthree-three";
   import Mesh from "svelthree/src/components/Mesh.svelte";
   import { TURN_INDICATOR_HEIGHT, TURN_INDICATOR_WIDTH } from "../constants";
-  import gsap from "gsap";
   import { animateMaterial } from "./anim";
 
   export let scene: Scene;

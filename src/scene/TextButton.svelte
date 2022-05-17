@@ -1,8 +1,6 @@
 <script lang="ts">
   import {
-    Empty,
     MeshBasicMaterial,
-    MeshStandardMaterial,
     PlaneBufferGeometry,
     ShapeBufferGeometry,
   } from "svelthree";
@@ -19,7 +17,8 @@
   export let size: number;
   export let verticalPadding: number = size;
   export let horizontalPadding: number = size * 1.5;
-  export let alignTopLeft: boolean = false;
+  export let alignTop: boolean = false;
+  export let alignLeft: boolean = false;
 
   let geometry = new PlaneBufferGeometry(0, 0);
   const material = new MeshBasicMaterial({
@@ -46,9 +45,14 @@
 
     textPos = new Vector3(-boundingBox.max.x / 2, -boundingBox.max.y / 2, 0.01);
 
-    if (alignTopLeft) {
-      geometry.translate(width / 2, -height / 2, 0);
-      textPos.add(new Vector3(width / 2, -height / 2, 0));
+    if (alignTop) {
+      geometry.translate(0, -height / 2, 0);
+      textPos.add(new Vector3(0, -height / 2, 0));
+    }
+
+    if (alignLeft) {
+      geometry.translate(width / 2, 0, 0);
+      textPos.add(new Vector3(width / 2, 0, 0));
     }
   };
 
@@ -75,7 +79,7 @@
   };
 </script>
 
-<Mesh {scene} {geometry} {material} {...$$restProps} interact let:parent>
+<Mesh {scene} {geometry} {material} {...$$restProps} castShadow let:parent>
   <Mesh
     {scene}
     {geometry}

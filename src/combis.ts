@@ -5,9 +5,9 @@ import {
   CombinationMatcher,
   EyePairMatcher,
   MeldCombinationBuilder,
-  MeldCombinationMatcher,
   PongMatcher,
 } from "./combi-utils";
+import type { GameRules } from "./config/rules";
 import type { Meld, MeldInstance } from "./melds";
 import {
   HonorTile,
@@ -24,7 +24,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new PongMatcher())
     .withMeld(new PongMatcher())
     .withMeld(new EyePairMatcher())
-    .build(true);
+    .build(true, () => 2);
 
   export const SEQUENCE_HAND = new MeldCombinationBuilder("Sequence Hand")
     .withMeld(new ChowMatcher())
@@ -32,7 +32,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new ChowMatcher())
     .withMeld(new ChowMatcher())
     .withMeld(new EyePairMatcher())
-    .build(true);
+    .build(true, () => 4);
 
   const FILTER_TERMINAL = (tile: Tile) =>
     tile instanceof NumberedTile && (tile.value === 1 || tile.value === 9);
@@ -46,7 +46,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new PongMatcher(FILTER_MIXED_TERMINAL))
     .withMeld(new PongMatcher(FILTER_MIXED_TERMINAL))
     .withMeld(new EyePairMatcher(FILTER_MIXED_TERMINAL))
-    .build(true);
+    .build(true, () => 2);
 
   export const PURE_TERMINALS = new MeldCombinationBuilder("Pure Terminals")
     .withMeld(new PongMatcher(FILTER_TERMINAL))
@@ -54,7 +54,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new PongMatcher(FILTER_TERMINAL))
     .withMeld(new PongMatcher(FILTER_TERMINAL))
     .withMeld(new EyePairMatcher(FILTER_TERMINAL))
-    .build(true);
+    .build(true, (rules: GameRules) => rules.maxDoubles);
 
   export const ALL_HONORS = new MeldCombinationBuilder("All Honors")
     .withMeld(new PongMatcher(FILTER_HONOR))
@@ -62,7 +62,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new PongMatcher(FILTER_HONOR))
     .withMeld(new PongMatcher(FILTER_HONOR))
     .withMeld(new EyePairMatcher(FILTER_HONOR))
-    .build(true);
+    .build(true, (rules: GameRules) => rules.maxDoubles);
 
   const FILTER_CHARACTERS = (tile: Tile) =>
     tile.suit === StandardMahjong.SUIT_CHARACTERS;
@@ -83,7 +83,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new ChowOrPongMatcher(FILTER_MIXED_CHARACTERS))
     .withMeld(new ChowOrPongMatcher(FILTER_MIXED_CHARACTERS))
     .withMeld(new EyePairMatcher(FILTER_MIXED_CHARACTERS))
-    .build(true);
+    .build(true, (rules: GameRules) => rules.mixedSuits);
 
   const MIXED_BAMBOOS = new MeldCombinationBuilder("Mixed Bamboos")
     .withMeld(new ChowOrPongMatcher(FILTER_MIXED_BAMBOOS))
@@ -91,7 +91,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new ChowOrPongMatcher(FILTER_MIXED_BAMBOOS))
     .withMeld(new ChowOrPongMatcher(FILTER_MIXED_BAMBOOS))
     .withMeld(new EyePairMatcher(FILTER_MIXED_BAMBOOS))
-    .build(true);
+    .build(true, (rules: GameRules) => rules.mixedSuits);
 
   const MIXED_DOTS = new MeldCombinationBuilder("Mixed Dots")
     .withMeld(new ChowOrPongMatcher(FILTER_MIXED_DOTS))
@@ -99,7 +99,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new ChowOrPongMatcher(FILTER_MIXED_DOTS))
     .withMeld(new ChowOrPongMatcher(FILTER_MIXED_DOTS))
     .withMeld(new EyePairMatcher(FILTER_MIXED_DOTS))
-    .build(true);
+    .build(true, (rules: GameRules) => rules.mixedSuits);
 
   const PURE_CHARACTERS = new MeldCombinationBuilder("Pure Characters")
     .withMeld(new ChowOrPongMatcher(FILTER_CHARACTERS))
@@ -107,7 +107,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new ChowOrPongMatcher(FILTER_CHARACTERS))
     .withMeld(new ChowOrPongMatcher(FILTER_CHARACTERS))
     .withMeld(new EyePairMatcher(FILTER_CHARACTERS))
-    .build(true);
+    .build(true, (rules: GameRules) => rules.pureSuits);
 
   const PURE_BAMBOOS = new MeldCombinationBuilder("Pure Bamboos")
     .withMeld(new ChowOrPongMatcher(FILTER_BAMBOOS))
@@ -115,7 +115,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new ChowOrPongMatcher(FILTER_BAMBOOS))
     .withMeld(new ChowOrPongMatcher(FILTER_BAMBOOS))
     .withMeld(new EyePairMatcher(FILTER_BAMBOOS))
-    .build(true);
+    .build(true, (rules: GameRules) => rules.pureSuits);
 
   const PURE_DOTS = new MeldCombinationBuilder("Pure Dots")
     .withMeld(new ChowOrPongMatcher(FILTER_DOTS))
@@ -123,7 +123,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new ChowOrPongMatcher(FILTER_DOTS))
     .withMeld(new ChowOrPongMatcher(FILTER_DOTS))
     .withMeld(new EyePairMatcher(FILTER_DOTS))
-    .build(true);
+    .build(true, (rules: GameRules) => rules.pureSuits);
 
   class CompoundCombinationMatcher implements CombinationMatcher {
     readonly matchers: CombinationMatcher[];
@@ -175,7 +175,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new ChowOrPongMatcher(FILTER_GREEN_SUIT))
     .withMeld(new ChowOrPongMatcher(FILTER_GREEN_SUIT))
     .withMeld(new EyePairMatcher(FILTER_GREEN_SUIT))
-    .build(true);
+    .build(true, (rules: GameRules) => rules.pureSuits);
 
   export const NORMAL_HAND = new MeldCombinationBuilder("Normal Hand")
     .withMeld(new ChowOrPongMatcher())
@@ -183,7 +183,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new ChowOrPongMatcher())
     .withMeld(new ChowOrPongMatcher())
     .withMeld(new EyePairMatcher())
-    .build(true);
+    .build(true, () => 0);
 
   // Match whichever comes first
   export const FLUSH = new CompoundCombinationMatcher(

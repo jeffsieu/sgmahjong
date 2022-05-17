@@ -11,7 +11,6 @@
     WALL_GAP,
   } from "./constants";
   import TooltipContent from "./TooltipContent.svelte";
-  import Tooltip from "./TooltipContext.svelte";
   import WallMesh from "./WallMesh.svelte";
 
   export let wallStacks: WallStack[];

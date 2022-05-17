@@ -7,25 +7,17 @@
     Vector3,
     MeshStandardMaterial,
   } from "svelthree";
-  import type { Scene, Mesh as ThreeMesh } from "svelthree-three";
-  import {
-    TABLE_WIDTH,
-    HAND_TO_TABLE_EDGE,
-    WALL_TILT,
-    TILE_HEIGHT,
-  } from "./constants";
+  import type { Scene } from "svelthree-three";
+  import { TABLE_WIDTH, HAND_TO_TABLE_EDGE, WALL_TILT } from "./constants";
 
   import { DrawTileAction } from "../game-state/actions";
 
-  import gsap from "gsap";
   import PlayerSide from "./PlayerSide.svelte";
   import DiscardPile from "./DiscardPile.svelte";
   import Walls from "./Walls.svelte";
   import Group from "../svelthree-patch/Group.svelte";
-  import Text from "./Text.svelte";
   import { PlayerControlledPhase } from "../game-state/phases";
   import CenterTurnIndicator from "./turn-indicator/CenterTurnIndicator.svelte";
-  import TextButton from "./TextButton.svelte";
   import { StandardMahjong } from "../tiles";
 
   export let hand: Hand;
@@ -38,15 +30,6 @@
   $: currentPhase = currentHand.getCurrentPhase();
   $: discardPile = currentHand.discardPile;
   $: wallStacks = currentHand.physicalWall.wallStacks;
-
-  const onTableOver = (event: CustomEvent): void => {
-    const tileObject: ThreeMesh = event.detail.target;
-    gsap.to(tileObject.position, {
-      duration: 0.3,
-      z: 1,
-      ease: "power3.out",
-    });
-  };
 </script>
 
 <Group {scene} let:parent>

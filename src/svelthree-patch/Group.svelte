@@ -3,7 +3,6 @@
   import {
     DoubleSide,
     MeshBasicMaterial,
-    MeshStandardMaterial,
     PlaneBufferGeometry,
     Scene,
   } from "svelthree-three";

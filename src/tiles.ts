@@ -1,4 +1,7 @@
-import type { DoubleProvider, WindDependentDoubleProvider } from "./global";
+import type {
+  DoubleProvider,
+  WindDependentDoubleProvider,
+} from "./scoring/scoring";
 import { tileToChar } from "./tile-ascii";
 
 export interface Suit {

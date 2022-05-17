@@ -46,9 +46,15 @@ const getTextureName = (tile: Tile): string => {
   }
 };
 
+const textureCache: Map<string, Texture> = new Map();
+
 export const getTexture = (tile: Tile): Texture => {
   const textureName = getTextureName(tile);
+  if (textureCache.has(textureName)) {
+    return textureCache.get(textureName)!;
+  }
   const texture = new TextureLoader().load(`tiles/${textureName}`);
   texture.anisotropy = 16;
+  textureCache.set(textureName, texture);
   return texture;
 };

@@ -1,27 +1,23 @@
 <script lang="ts">
   import {
     Mesh,
-    ExtrudeBufferGeometry,
     BoxGeometry,
     MeshStandardMaterial,
-    Shape,
     Empty,
     Color,
+    Vector3,
+    ShaderChunk,
   } from "svelthree";
 
-  import LineSegments from "../svelthree-patch/LineSegments.svelte";
+  import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
-  import {
-    Scene,
-    Mesh as ThreeMesh,
-    LineBasicMaterial,
-    WireframeGeometry,
-    EdgesGeometry,
-  } from "svelthree-three";
+  import { Scene, Plane } from "svelthree-three";
   import type { Tile, TileInstance } from "../tiles";
   import {
     TILE_COLOR_FACE,
+    TILE_FRONT_EXTRA_SIZE,
     TILE_HEIGHT,
+    TILE_RADIUS,
     TILE_THICKNESS,
     TILE_WIDTH,
   } from "./constants";
@@ -36,64 +32,14 @@
   export let onClick: (event: CustomEvent) => void = null;
   export let highlight: boolean = false;
 
-  function createBoxWithRoundedEdges(
-    width: number,
-    height: number,
-    depth: number,
-    radius0: number,
-    smoothness: number
-  ): ExtrudeBufferGeometry {
-    let shape = new Shape();
-    let eps = 0.00001;
-    let radius = radius0 - eps;
-    shape.absarc(eps, eps, eps, -Math.PI / 2, -Math.PI, true);
-    shape.absarc(eps, height - radius * 2, eps, Math.PI, Math.PI / 2, true);
-    shape.absarc(
-      width - radius * 2,
-      height - radius * 2,
-      eps,
-      Math.PI / 2,
-      0,
-      true
-    );
-    shape.absarc(width - radius * 2, eps, eps, 0, -Math.PI / 2, true);
-    let geometry = new ExtrudeBufferGeometry(shape, {
-      depth: depth - radius0 * 2,
-      bevelEnabled: true,
-      bevelSegments: smoothness * 2,
-      steps: 1,
-      bevelSize: radius,
-      bevelThickness: radius0,
-      curveSegments: smoothness,
-    });
-
-    geometry.center();
-
-    return geometry;
-  }
-
-  const tileGeometry = new BoxGeometry(
-    TILE_WIDTH,
-    TILE_HEIGHT,
-    TILE_THICKNESS / 2
-  );
-
-  const fullTileGeometry = new BoxGeometry(
-    TILE_WIDTH,
-    TILE_HEIGHT,
-    TILE_THICKNESS
-  );
-
-  const tileWireframeGeometry = new EdgesGeometry(fullTileGeometry);
-
-  let whiteTileFace = new MeshStandardMaterial({
+  const whiteTileFace = new MeshStandardMaterial({
     color: TILE_COLOR_FACE,
-    roughness: 0.5,
+    roughness: 0.1,
     metalness: 0.5,
   });
 
   // Define a material with the image only on the front face
-  let face = tile
+  const face: MeshStandardMaterial = tile
     ? new MeshStandardMaterial({
         map: getTexture(tile.value),
         roughness: 0.1,
@@ -101,6 +47,20 @@
         color: TILE_COLOR_FACE,
       })
     : whiteTileFace;
+
+  // Make the color of the face show underneath the transparent tile face
+  face.onBeforeCompile = function (shader) {
+    var custom_map_fragment = ShaderChunk.map_fragment.replace(
+      `diffuseColor *= texelColor;`,
+
+      `diffuseColor = vec4( mix( diffuse, texelColor.rgb, texelColor.a ), opacity );`
+    );
+
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <map_fragment>",
+      custom_map_fragment
+    );
+  };
 
   const baseTileMaterial = [
     whiteTileFace,
@@ -115,10 +75,11 @@
     color: 0x2b71d9,
     roughness: 0.1,
     metalness: 0.5,
+    clippingPlanes: [new Plane(new Vector3(0, 0, 1), 3)],
   });
 
   const highlightedBackMaterial = new MeshStandardMaterial({
-    color: new Color(0x2b71d9).lerp(new Color(0xffffff), 0.5),
+    color: new Color(0x2b71d9).offsetHSL(0, 0, 0.1),
     roughness: 0.1,
     metalness: 0.5,
   });
@@ -130,32 +91,65 @@
   const highlightedTileMaterial = baseTileMaterial.map((material) =>
     material.clone()
   );
-  highlightedTileMaterial.forEach(
-    (mat) => (mat.color = mat.color.lerp(new Color(TILE_COLOR_FACE), 0.5))
-  );
+  highlightedTileMaterial.forEach((mat) => {
+    mat.color = new Color(TILE_COLOR_FACE).offsetHSL(0, 0, 0.1);
+
+    mat.onBeforeCompile = function (shader) {
+      var custom_map_fragment = ShaderChunk.map_fragment.replace(
+        `diffuseColor *= texelColor;`,
+
+        `diffuseColor = vec4( mix( diffuse, texelColor.rgb, texelColor.a ), opacity );`
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <map_fragment>",
+        custom_map_fragment
+      );
+    };
+  });
 
   let tileMaterial = baseTileMaterial;
-  let backMaterial = baseBackMaterial;
+  $: backMaterial = baseBackMaterial;
 
   afterUpdate(() => {
     tileMaterial = highlight ? highlightedTileMaterial : baseTileMaterial;
     backMaterial = highlight ? highlightedBackMaterial : baseBackMaterial;
   });
 
-  const highlightMaterial = new LineBasicMaterial({
-    color: 0x000000,
-    linewidth: 1000,
+  const tileBackGeometry = new RoundedBoxGeometry(
+    TILE_WIDTH,
+    TILE_HEIGHT,
+    TILE_THICKNESS / 2 + TILE_RADIUS,
+    8,
+    TILE_RADIUS
+  ) as unknown as BoxGeometry;
+
+  const tileFrontGeometry = new RoundedBoxGeometry(
+    TILE_WIDTH + TILE_FRONT_EXTRA_SIZE,
+    TILE_HEIGHT + TILE_FRONT_EXTRA_SIZE,
+    TILE_THICKNESS / 2 + TILE_RADIUS,
+    8,
+    TILE_RADIUS
+  ) as unknown as BoxGeometry;
+
+  let mesh: Mesh;
+
+  onMount(() => {
+    if (mesh) {
+      // const position = mesh.getMesh().position;
+      // const plane: Plane = baseBackMaterial.clippingPlanes[0];
+      backMaterial = baseBackMaterial;
+      // plane.applyMatrix4(mesh.getMesh().matrixWorld);
+      // console.debug(plane);
+      // plane.constant = 1;
+      // console.debug(plane);
+    }
   });
 </script>
 
 <Empty {scene} {...$$restProps} let:parent>
-  <!-- <LineSegments
-    {scene}
-    {parent}
-    geometry={tileWireframeGeometry}
-    material={highlightMaterial}
-  /> -->
   <Mesh
+    bind:this={mesh}
     {scene}
     {parent}
     {onPointerOver}
@@ -164,8 +158,8 @@
     castShadow
     receiveShadow
     interact
-    pos={[0, 0, TILE_THICKNESS / 4]}
-    geometry={tileGeometry}
+    pos={[0, 0, TILE_THICKNESS / 4 - TILE_RADIUS / 2]}
+    geometry={tileBackGeometry}
     material={backMaterial}
   />
   <Mesh
@@ -177,8 +171,8 @@
     castShadow
     receiveShadow
     interact
-    pos={[0, 0, -TILE_THICKNESS / 4]}
-    geometry={tileGeometry}
+    pos={[0, 0, -TILE_THICKNESS / 4 + TILE_RADIUS / 2]}
+    geometry={tileFrontGeometry}
     material={tileMaterial}
   />
 </Empty>

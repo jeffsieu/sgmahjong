@@ -10,10 +10,13 @@ import {
   NextHandAction,
   PlayerWindowOfOpportunityAction,
   RevealBonusTileThenDrawAction,
+  SelfDrawMahjongAction,
   SkipWindowOfOpportunityAction,
+  ToDiscardAction,
   WindowOfOpportunityAction,
 } from "./actions";
 import { Chow } from "../melds";
+import type { WinningHand } from "../scoring/scoring";
 
 export interface ReadonlyHandPhase {
   name: string;
@@ -134,6 +137,8 @@ export class PostDrawPhase extends PlayerControlledPhase {
 export class ToDiscardPhase extends PlayerControlledPhase {
   name = `To Discard (${this.player.wind.name})`;
   discardedTile: TileInstance<Tile> | undefined;
+  isOver = false;
+  isSelfDrawDeclared = false;
 
   getErrorForAction(action: HandAction): Error | null {
     const superError = super.getErrorForAction(action);
@@ -141,10 +146,7 @@ export class ToDiscardPhase extends PlayerControlledPhase {
       return superError;
     }
 
-    if (
-      !(action instanceof DiscardTileAction) &&
-      !(action instanceof RevealBonusTileThenDrawAction)
-    ) {
+    if (!(action instanceof ToDiscardAction)) {
       return new Error("Invalid action.");
     }
 
@@ -157,11 +159,17 @@ export class ToDiscardPhase extends PlayerControlledPhase {
       throw error;
     }
 
-    if (
-      action instanceof DiscardTileAction ||
-      action instanceof RevealBonusTileThenDrawAction
-    ) {
+    if (action instanceof ToDiscardAction) {
       const tile = action.execute(this.hand);
+      this.isOver = true;
+
+      if (action instanceof SelfDrawMahjongAction) {
+        this.isSelfDrawDeclared = true;
+      }
+
+      if (action instanceof RevealBonusTileThenDrawAction) {
+        this.isOver = false;
+      }
 
       if (action instanceof DiscardTileAction) {
         this.discardedTile = tile as TileInstance<Tile>;
@@ -170,15 +178,19 @@ export class ToDiscardPhase extends PlayerControlledPhase {
   }
 
   isCompleted(): boolean {
-    return this.player.hand.length + this.player.melds.length * 3 === 13;
+    return this.isOver;
   }
 
   getNextPhase(): HandPhase {
-    return new WindowOfOpportunityPhase(
-      this.hand,
-      this.player,
-      this.discardedTile
-    );
+    if (!this.isSelfDrawDeclared) {
+      return new WindowOfOpportunityPhase(
+        this.hand,
+        this.player,
+        this.discardedTile
+      );
+    } else {
+      return new EndOfHandPhase(this.hand, this.player);
+    }
   }
 }
 
@@ -249,6 +261,11 @@ export class WindowOfOpportunityPhase extends HandPhase {
     }
 
     this.actions.set(action.player, action as PlayerWindowOfOpportunityAction);
+
+    console.debug(this.actions);
+    if ([...this.actions.values()].every((action) => action !== null)) {
+      this.close();
+    }
   }
 
   getErrorForAction(action: HandAction): Error {
@@ -325,14 +342,10 @@ export class WindowOfOpportunityPhase extends HandPhase {
   }
 }
 
-export class EndOfHandPhase extends HandPhase {
+export class EndOfHandPhase extends PlayerControlledPhase {
   name = "End of Hand";
 
   private isOver: boolean = false;
-
-  constructor(readonly hand: Hand, readonly winner: ReadonlyPlayer | null) {
-    super(hand);
-  }
 
   tryExecuteAction(action: HandAction): void {
     const error = this.getErrorForAction(action);
@@ -347,10 +360,6 @@ export class EndOfHandPhase extends HandPhase {
   getErrorForAction(action: HandAction): Error {
     if (!(action instanceof NextHandAction)) {
       return new Error("Invalid action.");
-    }
-
-    if (action.player !== this.winner) {
-      return new Error("Only the winner can start the next hand.");
     }
 
     return null;

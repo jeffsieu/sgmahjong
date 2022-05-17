@@ -7,7 +7,6 @@ import {
 } from "../game-state/actions";
 import type { Hand, ReadonlyPlayer } from "../game-state/game-state";
 import {
-  HandPhase,
   PostDrawPhase,
   ReadonlyHandPhase,
   ToDiscardPhase,
@@ -37,20 +36,15 @@ export const getBestAction = (
   if (currentPhase instanceof WindowOfOpportunityPhase) {
     const bestAction = getValidWindowOfOpportunityActions(
       player,
-      currentPhase.discardedTile
+      currentPhase
     ).reduce((bestAction, action) => {
-      if (bestAction === null) {
-        return action;
-      }
       if (action.priority > bestAction.priority) {
         return action;
       }
       return bestAction;
-    }, null);
+    });
 
-    if (bestAction !== null) {
-      return bestAction;
-    }
+    return bestAction;
   }
 
   if (currentPhase instanceof ToDiscardPhase) {

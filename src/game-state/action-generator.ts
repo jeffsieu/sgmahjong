@@ -1,14 +1,15 @@
 import { ChowMatcher, MeldMatcher, PongMatcher } from "../combi-utils";
 import { getMatchingCombinations } from "../combis";
-import type { Chow, Meld } from "../melds";
+import type { Meld } from "../melds";
 import type { Tile, TileInstance } from "../tiles";
 import {
   FormMeldAction,
   MahjongAction,
   PlayerWindowOfOpportunityAction,
-  WindowOfOpportunityAction,
+  SkipWindowOfOpportunityAction,
 } from "./actions";
 import type { ReadonlyPlayer } from "./game-state";
+import type { WindowOfOpportunityPhase } from "./phases";
 
 export const getValidChowActions = (
   player: ReadonlyPlayer,
@@ -32,22 +33,29 @@ export const getValidMahjongActions = (
     [discardedTile, ...player.hand],
     player.melds
   );
-  return combinations
-    .filter((combi) => combi.isWinning)
-    .map((combi) => new MahjongAction(player, discardedTile, combi));
+  return combinations.filter((combi) => combi.isWinning).length > 0
+    ? [
+        new MahjongAction(player, discardedTile, {
+          combinations: combinations,
+          prevailingWind: player.gameHand.prevailingWind,
+          playerWind: player.wind,
+          melds: combinations[0].melds,
+          bonusTiles: player.bonusTiles,
+        }),
+      ]
+    : [];
 };
 
 export const getValidWindowOfOpportunityActions = (
   player: ReadonlyPlayer,
-  discardedTile: TileInstance<Tile>
+  phase: WindowOfOpportunityPhase
 ): PlayerWindowOfOpportunityAction[] => {
-  console.debug("tryng to get valid window of opportunity actions");
-  console.debug(player.hand);
   return [
-    ...getValidChowActions(player, discardedTile),
-    ...getValidPongActions(player, discardedTile),
-    ...getValidMahjongActions(player, discardedTile),
-  ];
+    ...getValidChowActions(player, phase.discardedTile),
+    ...getValidPongActions(player, phase.discardedTile),
+    ...getValidMahjongActions(player, phase.discardedTile),
+    new SkipWindowOfOpportunityAction(player),
+  ].filter((action) => phase.canExecuteAction(action));
 };
 
 const setEquals = (a: Set<any>, b: Set<any>): boolean => {
@@ -93,25 +101,6 @@ export const getValidMeldActions = (
   const validMelds = [...melds].filter((meld) =>
     meld.tiles.includes(discardedTile)
   );
-
-  // const validPositionChoices: Map<Meld, Set<number>[]> = new Map();
-  // for (const meld of validMelds) {
-  //   const requiredHandTiles = [...meld.tiles];
-  //   requiredHandTiles.splice(meld.tiles.indexOf(discardedTile.value), 1);
-
-  //   const tilePositions = requiredHandTiles.map((tile) =>
-  //     Array.from({ length: player.hand.length }, (_, i) => i).filter(
-  //       (i) => player.hand[i].value === tile
-  //     )
-  //   );
-
-  //   console.debug(requiredHandTiles);
-  //   console.debug(tilePositions);
-
-  //   const combinations = getCombinations(tilePositions);
-
-  //   validPositionChoices.set(meld, combinations);
-  // }
 
   return validMelds.flatMap(
     (meld) => new FormMeldAction(player, meld, discardedTile)

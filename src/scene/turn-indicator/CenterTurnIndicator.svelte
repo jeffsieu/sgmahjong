@@ -2,12 +2,7 @@
   import { PlaneBufferGeometry, MeshStandardMaterial } from "svelthree";
   import type { Scene } from "svelthree-three";
   import Mesh from "svelthree/src/components/Mesh.svelte";
-  import {
-    CENTER_SQUARE_LENGTH,
-    TURN_INDICATOR_HEIGHT,
-    TURN_INDICATOR_WIDTH,
-  } from "../constants";
-  import gsap from "gsap";
+  import { CENTER_SQUARE_LENGTH } from "../constants";
   import { animateMaterial } from "./anim";
 
   export let scene: Scene;

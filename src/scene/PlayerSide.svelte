@@ -14,7 +14,6 @@
     REVEALED_TILE_DISTANCE,
     CENTER_SQUARE_LENGTH,
     WALL_TILT,
-    WALL_GAP,
   } from "./constants";
 
   import PlayerHand from "./PlayerHand.svelte";
@@ -24,19 +23,23 @@
   import TurnIndicator from "./turn-indicator/PlayerTurnIndicator.svelte";
   import TextButton from "./TextButton.svelte";
   import PlayerSideButtons from "./PlayerSideButtons.svelte";
-  import { HandPhase, WindowOfOpportunityPhase } from "../game-state/phases";
+  import {
+    HandPhase,
+    ToDiscardPhase,
+    WindowOfOpportunityPhase,
+  } from "../game-state/phases";
   import { getValidWindowOfOpportunityActions } from "../game-state/action-generator";
   import {
-    FormMeldAction,
     isChowAction,
     isKongAction,
     isMahjongAction,
     isPongAction,
     isSkipAction,
-    MahjongAction,
+    SelfDrawMahjongAction,
+    SkipWindowOfOpportunityAction,
   } from "../game-state/actions";
-  import { Chow, Kong, Pong } from "../melds";
   import { StandardMahjong } from "../tiles";
+  import { getMatchingCombinations } from "../combis";
 
   export let phase: HandPhase;
   export let player: ReadonlyPlayer;
@@ -46,15 +49,15 @@
   export let hasTurnControl: boolean;
   export let showControls: boolean;
 
+  const buttonSize = 1.1;
+
   $: revealedTiles = [
     ...player.bonusTiles,
     ...player.melds.flatMap((meld) => meld.tiles),
   ];
   $: validWOPActions =
     phase instanceof WindowOfOpportunityPhase
-      ? getValidWindowOfOpportunityActions(player, phase.discardedTile).filter(
-          (action) => phase.canExecuteAction(action)
-        )
+      ? getValidWindowOfOpportunityActions(player, phase)
       : [];
   $: phase instanceof WindowOfOpportunityPhase &&
     console.debug(phase.discardedTile.value.toString());
@@ -65,92 +68,165 @@
   $: canKong = validWOPActions.some(isKongAction);
   $: canMahjong = validWOPActions.some(isMahjongAction);
   $: canSkip = validWOPActions.some(isSkipAction);
-  let subActions = [];
+  $: chowActions = validWOPActions.filter(isChowAction).map((action) => ({
+    name: action.meld.value.toString(),
+    meld: action.meld,
+    onClick: () => {
+      phase.hand.tryExecuteAction(action);
+      onUpdate();
+    },
+  }));
 
-  $: actions = [
-    ...(canSkip
-      ? [
-          {
-            name: "Skip",
-            onClick: () => {},
-          },
-        ]
-      : []),
-    ...(canChow
-      ? [
-          {
-            name: "Chow",
-            onClick: () => {
-              subActions = [
-                {
-                  name: "Back",
-                  onClick: () => {
-                    subActions = [];
-                  },
-                },
-              ];
-            },
-          },
-        ]
-      : []),
-    ...(canPong
-      ? [
-          {
-            name: "Pong",
-            onClick: () => {
-              phase.hand.tryExecuteAction(validWOPActions.find(isPongAction));
-              onUpdate();
-            },
-          },
-        ]
-      : []),
-    ...(canKong
-      ? [
-          {
-            name: "Kong",
-            onClick: () => {
-              phase.hand.tryExecuteAction(validWOPActions.find(isKongAction));
-              onUpdate();
-            },
-          },
-        ]
-      : []),
-    ...(canMahjong
-      ? [
-          {
-            name: "Win",
-            onClick: () => {
-              phase.hand.tryExecuteAction(
-                validWOPActions.find(isMahjongAction)
-              );
-              onUpdate();
-            },
-          },
-        ]
-      : []),
+  let showChowActions = false;
+
+  $: chowActionRows = [
+    [],
+    [
+      {
+        name: "Back",
+        show: true,
+        onClick: () => {
+          showChowActions = false;
+        },
+      },
+    ],
   ];
-  $: player.wind === StandardMahjong.SUIT_EAST && console.debug(actions);
-  const buttonActions = subActions.length > 0 ? subActions : actions;
+
+  $: regularActionRows = [
+    [
+      {
+        name: "Win",
+        show: canMahjong,
+        onClick: () => {
+          phase.hand.tryExecuteAction(validWOPActions.find(isMahjongAction));
+          onUpdate();
+        },
+      },
+      {
+        name: "Skip",
+        show: canSkip,
+        onClick: () => {
+          phase.hand.tryExecuteAction(
+            new SkipWindowOfOpportunityAction(player)
+          );
+          onUpdate();
+        },
+      },
+    ],
+    [
+      {
+        name: "Chow",
+        show: canChow,
+        onClick: () => {
+          showChowActions = true;
+        },
+      },
+    ],
+    [
+      {
+        name: "Kong",
+        show: canKong,
+        onClick: () => {
+          phase.hand.tryExecuteAction(validWOPActions.find(isKongAction));
+          onUpdate();
+        },
+      },
+      {
+        name: "Pong",
+        show: canPong,
+        onClick: () => {
+          phase.hand.tryExecuteAction(validWOPActions.find(isPongAction));
+          onUpdate();
+        },
+      },
+    ],
+  ];
+  $: actionRows = showChowActions ? chowActionRows : regularActionRows;
+
+  $: selfDrawCombinations =
+    phase instanceof ToDiscardPhase &&
+    phase.player === player &&
+    getMatchingCombinations(player.hand, player.melds);
+
+  $: canSelfDrawMahjong =
+    selfDrawCombinations && selfDrawCombinations.length > 0;
 </script>
 
 <Group {...$$restProps} {scene} let:parent>
-  {#if showControls && phase instanceof WindowOfOpportunityPhase}
-    <PlayerSideButtons
-      {scene}
-      {parent}
-      size={1.5}
-      {actions}
-      pos={new Vector3(0, -HAND_TO_TABLE_EDGE + TABLE_WIDTH / 2, 0.01)
-        .add(
-          new Vector3(
-            CENTER_SQUARE_LENGTH / 2,
-            -CENTER_SQUARE_LENGTH / 2 - TILE_HEIGHT,
-            0
-          ).applyAxisAngle(new Vector3(0, 0, 1), WALL_TILT)
-        )
-        .toArray()}
-      rot={[0, 0, WALL_TILT]}
-    />
+  {#if showControls}
+    {#if showChowActions}
+      {#each chowActions as action, index}
+        <TileRow
+          {scene}
+          {parent}
+          highlightOnHover
+          tooltip={"Chow"}
+          onClick={action.onClick}
+          tiles={action.meld.tiles}
+          faceUp
+          pos={new Vector3(
+            0,
+            -HAND_TO_TABLE_EDGE + TABLE_WIDTH / 2,
+            TILE_THICKNESS / 2
+          )
+            .add(
+              new Vector3(
+                -TILE_WIDTH * 3 -
+                  (chowActions.length - index) * 3 * TILE_WIDTH -
+                  ((chowActions.length - index - 1) * TILE_WIDTH) / 2 +
+                  CENTER_SQUARE_LENGTH / 2,
+                -CENTER_SQUARE_LENGTH / 2 - 2 * TILE_HEIGHT,
+                0
+              ).applyAxisAngle(new Vector3(0, 0, 1), WALL_TILT)
+            )
+            .toArray()}
+          rot={[0, 0, WALL_TILT]}
+        />
+      {/each}
+    {/if}
+    {#if phase instanceof WindowOfOpportunityPhase}
+      {#each actionRows as actions, index}
+        <PlayerSideButtons
+          {scene}
+          {parent}
+          size={buttonSize}
+          {actions}
+          pos={new Vector3(0, -HAND_TO_TABLE_EDGE + TABLE_WIDTH / 2, 0.01)
+            .add(
+              new Vector3(
+                CENTER_SQUARE_LENGTH / 2,
+                -CENTER_SQUARE_LENGTH / 2 -
+                  TILE_HEIGHT -
+                  index * buttonSize * 3.5,
+                0
+              ).applyAxisAngle(new Vector3(0, 0, 1), WALL_TILT)
+            )
+            .toArray()}
+          rot={[0, 0, WALL_TILT]}
+        />
+      {/each}
+    {/if}
+    {#if canSelfDrawMahjong}
+      <TextButton
+        {scene}
+        {parent}
+        text="Zimo"
+        onClick={() => {
+          phase.hand.tryExecuteAction(
+            new SelfDrawMahjongAction(player, {
+              prevailingWind: player.gameHand.prevailingWind,
+              playerWind: player.wind,
+              melds: selfDrawCombinations[0].melds,
+              combinations: selfDrawCombinations,
+              bonusTiles: player.bonusTiles,
+            })
+          );
+          onUpdate();
+        }}
+        size={1.5}
+        pos={[0, -TILE_THICKNESS / 4 - HAND_TO_TABLE_EDGE / 2, 0.02]}
+      />
+    {/if}
   {/if}
   {#if hasTurnControl}
     <TurnIndicator

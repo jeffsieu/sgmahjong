@@ -1,4 +1,8 @@
-import type { Tile, TileInstance } from "./tiles";
+import type {
+  DoubleProvider,
+  WindDependentDoubleProvider,
+} from "./scoring/scoring";
+import { HonorTile, Suit, Tile, TileInstance } from "./tiles";
 
 export class MeldInstance<M extends Meld> {
   constructor(readonly value: M, readonly tiles: TileInstance<Tile>[]) {}
@@ -29,8 +33,8 @@ export class Chow extends ThreeTileMeld {
   }
 }
 
-export class Pong extends ThreeTileMeld {
-  constructor(tile: Tile) {
+export class Pong extends ThreeTileMeld implements WindDependentDoubleProvider {
+  constructor(readonly tile: Tile) {
     super([tile, tile, tile]);
   }
 
@@ -39,6 +43,14 @@ export class Pong extends ThreeTileMeld {
       return false;
     }
     return this.tiles.every((tile) => other.tiles.includes(tile));
+  }
+
+  resolveWithWind(mainWind: Suit, playerWind: Suit): DoubleProvider {
+    if (this.tile instanceof HonorTile) {
+      return this.tile.getPongValue(mainWind, playerWind);
+    } else {
+      return () => 0;
+    }
   }
 }
 

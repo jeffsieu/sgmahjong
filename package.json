@@ -28,6 +28,7 @@
   "dependencies": {
     "gsap": "^3.10.4",
     "sirv-cli": "^2.0.0",
-    "svelthree": "^0.119.0-5"
+    "svelthree": "^0.119.0-5",
+    "three": "^0.140.2"
   }
 }

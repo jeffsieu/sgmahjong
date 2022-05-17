@@ -1,7 +1,9 @@
 // IN CENTIMETRES
 export const TILE_WIDTH = 2.6;
 export const TILE_HEIGHT = 3.7;
-export const TILE_THICKNESS = 1.2;
+export const TILE_THICKNESS = 1.8;
+export const TILE_RADIUS = 0.25;
+export const TILE_FRONT_EXTRA_SIZE = 0.03;
 export const TABLE_WIDTH = 88;
 export const WALL_GAP = 0.5 * TILE_WIDTH;
 export const HAND_TO_TABLE_EDGE = TILE_THICKNESS * 4;

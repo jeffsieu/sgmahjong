@@ -23,7 +23,6 @@
     wallStack.initialLength / 2 - Math.floor(drawnFromBack / 2);
   $: topRowLength = topRowEndIndex - topRowStartIndex;
   $: bottomRowLength = bottomRowEndIndex - bottomRowStartIndex;
-  $: stackLength = Math.max(topRowLength, bottomRowLength);
 </script>
 
 <Group {scene} {...$$restProps} let:parent>

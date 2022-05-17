@@ -11,6 +11,7 @@ import {
   Wind,
 } from "../tiles";
 import { PhysicalWall, PreGameDiceRoll } from "./pre-hand";
+import type { WinningHand } from "../scoring/scoring";
 
 export class Wall {
   readonly tiles: TileInstance<Tile>[];
@@ -53,9 +54,7 @@ export class SeatedPlayer implements ReadonlyPlayer {
     readonly wind: Wind,
     readonly hand: TileInstance<Tile>[]
   ) {
-    this.hand.sort((a, b) =>
-      a.value.toString().localeCompare(b.value.toString())
-    );
+    this.sortHand();
   }
 
   hasBonusTileInHand(): boolean {
@@ -87,6 +86,10 @@ export class SeatedPlayer implements ReadonlyPlayer {
   drawFromWall(): void {
     const tile = this.gameHand.draw();
     this.hand.push(tile);
+    this.sortHand();
+  }
+
+  private sortHand(): void {
     this.hand.sort((a, b) =>
       a.value.toString().localeCompare(b.value.toString())
     );
@@ -98,6 +101,7 @@ export class SeatedPlayer implements ReadonlyPlayer {
 
     const replacementTile = this.gameHand.drawReplacement();
     this.hand.push(replacementTile);
+    this.sortHand();
   }
 }
 
@@ -123,6 +127,7 @@ export interface ReadonlyHand {
   readonly physicalWall: PhysicalWall;
   readonly players: SeatedPlayer[];
   readonly discardPile: TileInstance<Tile>[];
+  getWinningHand(): WinningHand | null;
 }
 
 export class Hand implements PlayerUI, ReadonlyHand {
@@ -131,12 +136,13 @@ export class Hand implements PlayerUI, ReadonlyHand {
   readonly physicalWall = new PhysicalWall(this.diceRoll);
   readonly players: SeatedPlayer[];
   readonly discardPile: TileInstance<Tile>[] = [];
-  private isOver: boolean = false;
-  private currentPhase: HandPhase;
+  protected isOver: boolean = false;
+  protected currentPhase: HandPhase;
+  protected winningHand: WinningHand | null;
 
   constructor(
     readonly prevailingWind: Wind,
-    private readonly onFinish: () => void
+    protected readonly onFinish: () => void
   ) {
     this.players = [
       new SeatedPlayer(
@@ -227,5 +233,13 @@ export class Hand implements PlayerUI, ReadonlyHand {
 
   isFinished(): boolean {
     return this.isOver;
+  }
+
+  setWinningHand(winningHand: WinningHand): void {
+    this.winningHand = winningHand;
+  }
+
+  getWinningHand(): WinningHand | null {
+    return this.winningHand;
   }
 }
