@@ -36,7 +36,7 @@
 
   const onTextGeometryLoaded = (textGeometry: ShapeBufferGeometry) => {
     textGeometry.computeBoundingBox();
-    const boundingBox = textGeometry.boundingBox;
+    const boundingBox = textGeometry.boundingBox!;
 
     const width = boundingBox.max.x - boundingBox.min.x + horizontalPadding * 2;
     const height = size + verticalPadding * 2;

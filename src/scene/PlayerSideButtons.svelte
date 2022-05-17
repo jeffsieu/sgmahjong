@@ -23,7 +23,7 @@
 
   export const getTotalWidth = (): number => {
     return (
-      actions.reduce((acc, action) => acc + action.buttonWidth, 0) +
+      actions.reduce((acc, action) => acc + (action.buttonWidth ?? 0), 0) +
       spacing * (actions.length - 1)
     );
   };
@@ -53,7 +53,7 @@
 
           for (const action of actions) {
             action.pos = [offset - totalWidth, 0, 0.01];
-            offset += action.buttonWidth + spacing;
+            offset += (action.buttonWidth ?? 0) + spacing;
           }
         }
         onLoad();

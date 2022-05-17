@@ -1,19 +1,24 @@
 import type { ReadonlyPlayer, Hand } from "./game-state";
 import type { BonusTile, Tile, TileInstance } from "../tiles";
 import { Chow, Kong, Meld, MeldInstance, Pong } from "../melds";
-import type { Combination } from "../combi-utils";
 import type { WinningHand } from "../scoring/scoring";
+import {
+  EndOfHandPhase,
+  HandPhase,
+  ToDiscardPhase,
+  WindowOfOpportunityPhase,
+} from "./phases";
 
 export interface HandAction {
-  player: ReadonlyPlayer;
+  player: ReadonlyPlayer | null;
   execute(hand: Hand): void;
 }
 
 export class DrawTileAction implements HandAction {
   constructor(readonly player: ReadonlyPlayer) {}
 
-  execute(hand: Hand): void {
-    hand.getPlayerWithWind(this.player.wind).drawFromWall();
+  execute(hand: Hand): TileInstance<Tile> {
+    return hand.getPlayerWithWind(this.player.wind).drawFromWall();
   }
 }
 
@@ -22,11 +27,13 @@ export abstract class ToDiscardAction implements HandAction {
   abstract execute(hand: Hand): any;
 }
 
-export class RevealBonusTileThenDrawAction implements ToDiscardAction {
+export class RevealBonusTileThenDrawAction extends ToDiscardAction {
   constructor(
     readonly player: ReadonlyPlayer,
     readonly bonusTile: TileInstance<BonusTile>
-  ) {}
+  ) {
+    super();
+  }
 
   execute(hand: Hand): void {
     const player = hand.getPlayerWithWind(this.player.wind);
@@ -34,8 +41,10 @@ export class RevealBonusTileThenDrawAction implements ToDiscardAction {
   }
 }
 
-export class DiscardTileAction implements ToDiscardAction {
-  constructor(readonly player: ReadonlyPlayer, readonly position: number) {}
+export class DiscardTileAction extends ToDiscardAction {
+  constructor(readonly player: ReadonlyPlayer, readonly position: number) {
+    super();
+  }
 
   execute(hand: Hand): TileInstance<Tile> {
     const player = hand.getPlayerWithWind(this.player.wind);
@@ -43,11 +52,13 @@ export class DiscardTileAction implements ToDiscardAction {
   }
 }
 
-export class SelfDrawMahjongAction implements ToDiscardAction {
+export class SelfDrawMahjongAction extends ToDiscardAction {
   constructor(
     readonly player: ReadonlyPlayer,
     readonly winningHand: WinningHand
-  ) {}
+  ) {
+    super();
+  }
 
   execute(hand: Hand): void {
     this.player.hand.splice(0, this.player.hand.length);
@@ -61,16 +72,24 @@ export class SelfDrawMahjongAction implements ToDiscardAction {
 }
 
 export abstract class WindowOfOpportunityAction implements HandAction {
-  constructor(readonly player: ReadonlyPlayer) {}
+  constructor(readonly player: ReadonlyPlayer | null) {}
 
   abstract execute(hand: Hand): void;
 }
 
 export abstract class PlayerWindowOfOpportunityAction extends WindowOfOpportunityAction {
+  constructor(readonly player: ReadonlyPlayer) {
+    super(player);
+  }
+
   readonly priority: number;
 }
 
-export class FormMeldAction extends PlayerWindowOfOpportunityAction {
+export abstract class NonTrivialPlayerWindowOfOpportunityAction extends PlayerWindowOfOpportunityAction {
+  abstract getNextPhase(currentPhase: WindowOfOpportunityPhase): HandPhase;
+}
+
+export class FormMeldAction extends NonTrivialPlayerWindowOfOpportunityAction {
   readonly priority: number;
 
   constructor(
@@ -85,11 +104,17 @@ export class FormMeldAction extends PlayerWindowOfOpportunityAction {
   execute(hand: Hand): void {
     for (const tile of this.meld.tiles) {
       const position = this.player.hand.indexOf(tile);
-      this.player.hand.splice(position, 1);
+      if (position !== -1) {
+        this.player.hand.splice(position, 1);
+      }
     }
 
     this.player.melds.push(this.meld);
     hand.discardPile.pop();
+  }
+
+  getNextPhase(currentPhase: WindowOfOpportunityPhase): HandPhase {
+    return new ToDiscardPhase(currentPhase.hand, this.player, null);
   }
 }
 
@@ -110,7 +135,7 @@ export const isSkipAction = (
 ): action is SkipWindowOfOpportunityAction =>
   action instanceof SkipWindowOfOpportunityAction;
 
-export class MahjongAction extends PlayerWindowOfOpportunityAction {
+export class MahjongAction extends NonTrivialPlayerWindowOfOpportunityAction {
   readonly priority: number;
 
   constructor(
@@ -131,6 +156,10 @@ export class MahjongAction extends PlayerWindowOfOpportunityAction {
     }
     hand.discardPile.pop();
     hand.setWinningHand(this.winningHand);
+  }
+
+  getNextPhase(currentPhase: WindowOfOpportunityPhase): HandPhase {
+    return new EndOfHandPhase(currentPhase.hand, this.player);
   }
 }
 

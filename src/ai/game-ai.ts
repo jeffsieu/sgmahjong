@@ -20,13 +20,17 @@ export const getBestAction = (
   player: ReadonlyPlayer
 ): HandAction | null => {
   if (currentPhase instanceof PostDrawPhase && player.hasBonusTileInHand()) {
-    return new RevealBonusTileThenDrawAction(
-      player,
-      player.hand.find(
+    const possibleActions = player.hand
+      .filter(
         (tile): tile is TileInstance<BonusTile> =>
           tile.value instanceof BonusTile
       )
-    );
+      .map((tile) => new RevealBonusTileThenDrawAction(player, tile))
+      .filter((action) => currentPhase.canExecuteAction(action));
+    if (possibleActions.length > 0) {
+      return possibleActions[0];
+    }
+    return null;
   }
 
   if (currentPhase instanceof ToDrawPhase) {
@@ -34,15 +38,16 @@ export const getBestAction = (
   }
 
   if (currentPhase instanceof WindowOfOpportunityPhase) {
-    const bestAction = getValidWindowOfOpportunityActions(
-      player,
-      currentPhase
-    ).reduce((bestAction, action) => {
-      if (action.priority > bestAction.priority) {
-        return action;
-      }
-      return bestAction;
-    });
+    const wopActions = getValidWindowOfOpportunityActions(player, currentPhase);
+    const bestAction =
+      wopActions.length > 0
+        ? wopActions.reduce((bestAction, action) => {
+            if (action.priority > bestAction.priority) {
+              return action;
+            }
+            return bestAction;
+          })
+        : null;
 
     return bestAction;
   }
@@ -54,7 +59,7 @@ export const getBestAction = (
         player.hand.find(
           (tile): tile is TileInstance<BonusTile> =>
             tile.value instanceof BonusTile
-        )
+        )!
       );
     }
     return new DiscardTileAction(
@@ -62,6 +67,8 @@ export const getBestAction = (
       chooseBestTileToDiscard(currentPhase.hand, player)
     );
   }
+
+  return null;
 };
 
 const chooseBestTileToDiscard = (
@@ -81,7 +88,7 @@ const chooseBestTileToDiscard = (
     if (!honorTilesRequired.has(honorTile)) {
       honorTilesRequired.set(honorTile, 2);
     } else {
-      honorTilesRequired.set(honorTile, honorTilesRequired.get(honorTile) - 1);
+      honorTilesRequired.set(honorTile, honorTilesRequired.get(honorTile)! - 1);
     }
   }
 
@@ -90,7 +97,7 @@ const chooseBestTileToDiscard = (
     .filter((tile): tile is HonorTile => tile instanceof HonorTile);
 
   const waitingHonorTiles = handHonorTiles.filter(
-    (honorTile) => honorTilesRequired.get(honorTile) > 0
+    (honorTile) => honorTilesRequired.get(honorTile)! > 0
   );
 
   for (const waitingHonorTile of waitingHonorTiles) {
@@ -98,7 +105,7 @@ const chooseBestTileToDiscard = (
     const revealedCount = revealedHonorTiles.filter(
       (tile) => tile === waitingHonorTile
     ).length;
-    if (revealedCount >= requiredCount) {
+    if (revealedCount >= requiredCount!) {
       return player.hand.findIndex((tile) => tile.value === waitingHonorTile);
     }
   }

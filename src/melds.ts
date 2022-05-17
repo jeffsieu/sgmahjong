@@ -72,7 +72,7 @@ export class Kong extends Meld {
 }
 
 export class EyePair extends Meld {
-  constructor(tile: Tile) {
+  constructor(readonly tile: Tile) {
     super([tile, tile]);
   }
 

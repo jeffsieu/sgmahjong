@@ -1,7 +1,6 @@
 <script lang="ts">
   import { StandardMahjong } from "./tiles";
   import { Round } from "./game-state/game-state";
-  import { getMatchingCombinations } from "./combis";
 
   import {
     Canvas,
@@ -15,11 +14,7 @@
     PointLight,
   } from "svelthree";
 
-  import {
-    KEY_CANVAS_CONTEXT,
-    TABLE_WIDTH,
-    TILE_HEIGHT,
-  } from "./scene/constants";
+  import { KEY_CANVAS_CONTEXT, TILE_HEIGHT } from "./scene/constants";
   import Table from "./scene/Table.svelte";
   import { onMount, setContext } from "svelte";
   import { MessageLogger } from "./message-logger";
@@ -49,8 +44,7 @@
   let currentHand = currentRound.getCurrentHand();
   // let currentHand = new DebugHand(StandardMahjong.SUIT_EAST, () => {});
 
-  const player = currentHand.players[0];
-  let combinations = getMatchingCombinations(player.hand, player.melds);
+  let player = currentHand.players[0];
   let logMessages = MessageLogger.getLogs();
 
   Object3D.DefaultUp.set(0, 0, 1);
@@ -58,9 +52,12 @@
   currentHand.physicalWall.drawStartingHands();
 
   const updateState = () => {
-    combinations = getMatchingCombinations(player.hand, player.melds);
     logMessages = MessageLogger.getLogs();
     currentHand = currentHand;
+    player = player;
+    currentPhase = currentHand.getCurrentPhase();
+
+    console.debug("UPDATING STATE!");
   };
 
   const cheat = () => {
@@ -82,6 +79,17 @@
     ].forEach((tile) => player.hand.push(tile));
   };
 
+  // cheat();
+  // currentHand.setCurrentPhase(
+  //   new WindowOfOpportunityPhase(
+  //     currentHand,
+  //     currentHand.getPlayerWithWind(StandardMahjong.SUIT_NORTH),
+  //     TileDebug.characters(8)
+  //   )
+  // );
+
+  // updateState();
+
   $: currentPhase = currentHand.getCurrentPhase();
 
   const useAI = (): boolean => {
@@ -90,15 +98,17 @@
     for (const player of currentHand.players.filter(
       (player) => player.wind !== StandardMahjong.SUIT_EAST
     )) {
-      const action = getBestAction(currentPhase, player);
-      try {
-        currentHand.tryExecuteAction(action);
-        updateState();
-        executed = true;
-        if (currentHand.getCurrentPhase() !== currentPhase) {
-          return true;
-        }
-      } catch (e) {}
+      const action = getBestAction(currentHand.getCurrentPhase(), player);
+      if (action !== null) {
+        try {
+          currentHand.tryExecuteAction(action);
+          updateState();
+          executed = true;
+          if (currentHand.getCurrentPhase() !== currentPhase) {
+            return true;
+          }
+        } catch (e) {}
+      }
     }
     return executed;
   };
@@ -186,6 +196,47 @@
   };
 
   setContext(KEY_CANVAS_CONTEXT, canvasContext);
+
+  let interval: NodeJS.Timer | null = null;
+
+  $: {
+    if (currentPhase instanceof WindowOfOpportunityPhase) {
+      if (interval === null) {
+        console.debug("MAKING A TIMER");
+        interval = setInterval(() => {
+          updateState();
+        }, 100);
+        console.debug(interval);
+        setTimeout(() => {
+          if (interval) {
+            clearInterval(interval);
+          }
+        }, STANDARD_GAME_RULES.windowOfOpportunityTime * 1000);
+      } else if (
+        Date.now() - currentPhase.startTime >
+        STANDARD_GAME_RULES.windowOfOpportunityTime * 1000
+      ) {
+        console.debug("CLEARING INTERVAL");
+        clearInterval(interval);
+        interval = null;
+        currentHand.tryExecuteAction(new CloseWindowOfOpportunityAction());
+        console.debug("tried to execute!");
+        updateState();
+      }
+    } else if (interval !== null) {
+      console.debug("CLEARING INTERVAL OUTSIDE");
+      clearInterval(interval);
+      interval = null;
+    }
+  }
+
+  console.debug("SHIT!");
+  const aiInterval = setInterval(() => {
+    useAI();
+    if (currentHand.isFinished()) {
+      clearInterval(aiInterval);
+    }
+  }, 1000);
 </script>
 
 <main>
@@ -202,12 +253,11 @@
           <PerspectiveCamera
             {scene}
             id="cam1"
-            pos={[0, -TABLE_WIDTH / 2, 10]}
+            pos={[0, -100, 75]}
             lookAt={[0, TILE_HEIGHT / 2, 0]}
             props={{
               name: "camera",
-              zoom: 0.5,
-              fov: 20,
+              zoom: 1.75,
               aspect: cameraAspect,
             }}
           />
@@ -254,13 +304,20 @@
       <div>
         <h3>Dice roll results: {currentHand.diceRoll.resultSum}</h3>
       </div>
+      Tiles left: {currentHand.wall.tiles.length}
       <button on:click={cheat}>Cheat</button>
       <button on:click={useAI}>Use AI</button>
       <button on:click={skipToMyTurn}>Skip to my turn</button>
+      {#if currentPhase instanceof WindowOfOpportunityPhase}
+        TIME LEFT: {Date.now() - currentPhase.startTime} ms
+      {/if}
       {#if currentPhase instanceof EndOfHandPhase}
-        Your score: {getWinningHandDoubles(currentHand.getWinningHand())(
-          STANDARD_GAME_RULES
-        )}
+        Winning hand score: {(() => {
+          const winningHand = currentHand.getWinningHand();
+          return winningHand
+            ? getWinningHandDoubles(winningHand)(STANDARD_GAME_RULES)
+            : 0;
+        })()}
       {/if}
       <div id="actions">
         {#if currentPhase instanceof WindowOfOpportunityPhase}
@@ -294,19 +351,6 @@
               {/each}
             </div>
           {/if}
-        {/each}
-      </div>
-      <h3>Combinations in hand</h3>
-      <div id="combinations">
-        {#each combinations as combi}
-          <div>
-            {combi.name}
-            <div style="display: flex; gap: 10px">
-              {#each combi.melds as meld}
-                {meld.toString()}
-              {/each}
-            </div>
-          </div>
         {/each}
       </div>
     </div>

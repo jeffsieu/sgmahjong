@@ -9,9 +9,9 @@
   export let scene: Scene;
   export let highlight: boolean = false;
 
-  export let onPointerOut: (event: CustomEvent) => void = null;
-  export let onPointerOver: (event: CustomEvent) => void = null;
-  export let onClick: (event: CustomEvent) => void = null;
+  export let onPointerOut: (event: CustomEvent) => void = () => {};
+  export let onPointerOver: (event: CustomEvent) => void = () => {};
+  export let onClick: (event: CustomEvent) => void = () => {};
 
   $: initialStackLength = wallStack.initialLength / 2;
   $: topRowStartIndex = Math.ceil(wallStack.getStart() / 2);

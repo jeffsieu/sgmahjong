@@ -26,8 +26,15 @@ export class Wall {
     }
   }
 
+  canDraw(): boolean {
+    return this.tiles.length > 14;
+  }
+
   draw(): TileInstance<Tile> {
-    return this.tiles.pop();
+    if (!this.canDraw()) {
+      throw new Error("Cannot draw from wall");
+    }
+    return this.tiles.pop()!;
   }
 
   drawReplacement(): TileInstance<Tile> {
@@ -83,10 +90,11 @@ export class SeatedPlayer implements ReadonlyPlayer {
     }
   }
 
-  drawFromWall(): void {
+  drawFromWall(): TileInstance<Tile> {
     const tile = this.gameHand.draw();
     this.hand.push(tile);
     this.sortHand();
+    return tile;
   }
 
   private sortHand(): void {
@@ -172,15 +180,23 @@ export class Hand implements PlayerUI, ReadonlyHand {
       this.getPlayerWithWind(StandardMahjong.SUIT_EAST),
       0
     );
-    while (this.currentPhase !== null && this.currentPhase.isCompleted()) {
-      this.currentPhase = this.currentPhase.getNextPhase();
+    while (this.currentPhase.isCompleted()) {
+      const nextPhase = this.currentPhase.getNextPhase();
+      if (nextPhase === null) {
+        break;
+      }
+      this.currentPhase = nextPhase;
     }
   }
 
   tryExecuteAction(action: HandAction): void {
     this.currentPhase.tryExecuteAction(action);
-    while (this.currentPhase !== null && this.currentPhase.isCompleted()) {
-      this.currentPhase = this.currentPhase.getNextPhase();
+    while (this.currentPhase.isCompleted()) {
+      const nextPhase = this.currentPhase.getNextPhase();
+      if (nextPhase === null) {
+        break;
+      }
+      this.currentPhase = nextPhase;
     }
     if (this.isFinished()) {
       this.onFinish();
@@ -201,7 +217,7 @@ export class Hand implements PlayerUI, ReadonlyHand {
   }
 
   getPlayerWithWind(wind: Wind): SeatedPlayer {
-    return this.players.find((player) => player.wind === wind);
+    return this.players.find((player) => player.wind === wind)!;
   }
 
   getPlayerAfter(player: ReadonlyPlayer): SeatedPlayer {
@@ -225,6 +241,10 @@ export class Hand implements PlayerUI, ReadonlyHand {
   drawReplacement(): TileInstance<Tile> {
     this.physicalWall.popBack();
     return this.wall.drawReplacement();
+  }
+
+  canDraw(): boolean {
+    return this.wall.tiles.length > 14;
   }
 
   finish(): void {

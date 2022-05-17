@@ -1,7 +1,7 @@
 import type { Combination } from "../combi-utils";
 import type { GameRules } from "../config/rules";
 import { Meld, MeldInstance, Pong } from "../melds";
-import type { BonusTile, TileInstance, Wind } from "../tiles";
+import type { BonusTile, StandardTile, TileInstance, Wind } from "../tiles";
 
 export type DoubleProvider = (rules: GameRules) => number;
 
@@ -9,12 +9,23 @@ export type WindDependentDoubleProvider = {
   resolveWithWind: (mainWind: Wind, playerWind: Wind) => DoubleProvider;
 };
 
-export type WinningHand = {
+export enum WinningHandType {
+  SelfDraw,
+  Discard,
+}
+
+export type CandidateWinningHand = {
   prevailingWind: Wind;
   playerWind: Wind;
+  preWinHand: TileInstance<StandardTile>[];
+  preWinMelds: MeldInstance<Meld>[];
+  bonusTiles: TileInstance<BonusTile>[];
+  type: WinningHandType;
+};
+
+export type WinningHand = CandidateWinningHand & {
   melds: MeldInstance<Meld>[];
   combinations: Combination[];
-  bonusTiles: TileInstance<BonusTile>[];
 };
 
 export const getWinningHandDoubles = (
@@ -41,6 +52,7 @@ export const getWinningHandDoubles = (
         )(rules)
       )
       .reduce((a, b) => a + b, 0);
+    // const sequenceHandExtraDoubles =
     return combinationDoubles + bonusTileDoubles + meldDoubles;
   };
 };

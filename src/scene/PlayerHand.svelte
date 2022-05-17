@@ -24,6 +24,7 @@
   export let playerUi: PlayerUI;
   export let scene: Scene;
   export let onUpdate: () => void;
+  export let canControl: boolean;
 
   let hoveredTiles: Set<TileInstance<Tile>> = new Set();
   $: hoveredTile =
@@ -37,25 +38,31 @@
   const onTilePointerOver =
     (position: number) =>
     (event: CustomEvent): void => {
+      if (!canControl) {
+        return;
+      }
+
       const tileObject: ThreeMesh = event.detail.target;
-      gsap.to(tileObject.parent.position, {
-        duration: 0.3,
-        y:
-          (Math.cos(DISCARD_TILE_TILT) *
-            Math.sqrt(TILE_HEIGHT ** 2 + TILE_THICKNESS ** 2)) /
-          2,
-        z:
-          (Math.sin(DISCARD_TILE_TILT) *
-            Math.sqrt(TILE_HEIGHT ** 2 + TILE_THICKNESS ** 2)) /
-            2 -
-          TILE_HEIGHT / 2,
-        ease: "power3.out",
-      });
-      gsap.to(tileObject.parent.rotation, {
-        duration: 0.3,
-        x: DISCARD_TILE_TILT,
-        ease: "power3.out",
-      });
+      if (tileObject.parent) {
+        gsap.to(tileObject.parent.position, {
+          duration: 0.3,
+          y:
+            (Math.cos(DISCARD_TILE_TILT) *
+              Math.sqrt(TILE_HEIGHT ** 2 + TILE_THICKNESS ** 2)) /
+            2,
+          z:
+            (Math.sin(DISCARD_TILE_TILT) *
+              Math.sqrt(TILE_HEIGHT ** 2 + TILE_THICKNESS ** 2)) /
+              2 -
+            TILE_HEIGHT / 2,
+          ease: "power3.out",
+        });
+        gsap.to(tileObject.parent.rotation, {
+          duration: 0.3,
+          x: DISCARD_TILE_TILT,
+          ease: "power3.out",
+        });
+      }
 
       hoveredTiles.add(player.hand[position]);
       hoveredTiles = hoveredTiles;
@@ -64,18 +71,23 @@
   const onTilePointerOut =
     (position: number) =>
     (event: CustomEvent): void => {
+      if (!canControl) {
+        return;
+      }
       const tileObject: ThreeMesh = event.detail.target;
-      gsap.to(tileObject.parent.position, {
-        duration: 0.3,
-        y: 0,
-        z: 0,
-        ease: "power3.out",
-      });
-      gsap.to(tileObject.parent.rotation, {
-        duration: 0.3,
-        x: Math.PI / 2,
-        ease: "power3.out",
-      });
+      if (tileObject.parent) {
+        gsap.to(tileObject.parent.position, {
+          duration: 0.3,
+          y: 0,
+          z: 0,
+          ease: "power3.out",
+        });
+        gsap.to(tileObject.parent.rotation, {
+          duration: 0.3,
+          x: Math.PI / 2,
+          ease: "power3.out",
+        });
+      }
 
       hoveredTiles.delete(player.hand[position]);
       hoveredTiles = hoveredTiles;
@@ -84,6 +96,9 @@
   const onTileClick =
     (position: number) =>
     (event: CustomEvent): void => {
+      if (!canControl) {
+        return;
+      }
       try {
         const tile = player.hand[position];
         if (tile.value instanceof BonusTile) {
@@ -107,7 +122,7 @@
     };
 </script>
 
-{#if hoveredTileTooltip}
+{#if canControl && hoveredTileTooltip}
   <TooltipContent text={hoveredTileTooltip} />
 {/if}
 
@@ -122,6 +137,7 @@
       onPointerOver={onTilePointerOver(index)}
       onPointerOut={onTilePointerOut(index)}
       onClick={onTileClick(index)}
+      hidden={!canControl}
     />
   {/each}
 </Empty>

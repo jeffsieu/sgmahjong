@@ -8,11 +8,11 @@
   import TooltipContent from "./TooltipContent.svelte";
 
   export let scene: Scene;
-  export let tiles: TileInstance<Tile>[];
+  export let tiles: (TileInstance<Tile> | null)[];
   export let faceUp: boolean;
   export let highlight: boolean = false;
   export let highlightOnHover: boolean = false;
-  export let tooltip: string = null;
+  export let tooltip: string | null = null;
 
   export let onPointerOut: (event: CustomEvent) => void = () => {};
   export let onPointerOver: (event: CustomEvent) => void = () => {};

@@ -8,13 +8,23 @@ import {
   PongMatcher,
 } from "./combi-utils";
 import type { GameRules } from "./config/rules";
-import type { Meld, MeldInstance } from "./melds";
+import type { ReadonlyPlayer } from "./game-state/game-state";
+import { EyePair, Meld, MeldInstance } from "./melds";
+import {
+  CandidateWinningHand,
+  DoubleProvider,
+  getWinningHandDoubles,
+  WinningHand,
+  WinningHandType,
+} from "./scoring/scoring";
 import {
   HonorTile,
   NumberedTile,
+  SingaporeMahjong,
   StandardMahjong,
   Tile,
   TileInstance,
+  Wind,
 } from "./tiles";
 
 export namespace StandardCombiMatchers {
@@ -32,7 +42,7 @@ export namespace StandardCombiMatchers {
     .withMeld(new ChowMatcher())
     .withMeld(new ChowMatcher())
     .withMeld(new EyePairMatcher())
-    .build(true, () => 4);
+    .build(true, () => 1);
 
   const FILTER_TERMINAL = (tile: Tile) =>
     tile instanceof NumberedTile && (tile.value === 1 || tile.value === 9);
@@ -207,27 +217,185 @@ export namespace StandardCombiMatchers {
   export const NON_EXCLUSIVE_MATCHERS = [FLUSH, TRIPLETS, SEQUENCE_HAND];
 }
 
-export const getMatchingCombinations = (
-  tiles: TileInstance<Tile>[],
-  existingMelds: MeldInstance<Meld>[]
-): Combination[] => {
-  const combinations: Combination[] = [];
+export class SequenceHandCombination extends Combination {
+  constructor(readonly isPure: boolean, readonly melds: MeldInstance<Meld>[]) {
+    super(
+      isPure ? "Sequence Hand" : "Lesser Sequence Hand",
+      melds,
+      true,
+      (rules: GameRules) => {
+        return isPure ? rules.sequenceHand : rules.lesserSequenceHand;
+      }
+    );
+  }
+}
 
-  for (const matcher of StandardCombiMatchers.NON_EXCLUSIVE_MATCHERS) {
-    const combination = matcher.getFirstMatch(tiles, existingMelds);
-    if (combination) {
-      combinations.push(combination);
+const isProperSequenceHand = (
+  winningHand: CandidateWinningHand,
+  melds: MeldInstance<Meld>[]
+): boolean => {
+  // For a sequence hand to be valid,
+  // 1. The player must be either waiting for at least two tiles
+  // 2. Or, the player has self-drawn the last tile.
+  // 3. The above rule is not applicable when the player has 4 melds, in which
+  //    case it is obvious that it was a single-sided wait.
+  // 4. The pair must be a non-double-providing pair.
+
+  // Non-double-providing pair
+  const pairTile = melds.find(
+    (meld): meld is MeldInstance<EyePair> => meld instanceof EyePair
+  )?.value.tile;
+  if (pairTile === undefined) {
+    return false;
+  }
+  const pairHasDoubles =
+    pairTile instanceof HonorTile &&
+    pairTile.getPongValue(winningHand.prevailingWind, winningHand.playerWind);
+  if (pairHasDoubles) {
+    return false;
+  }
+
+  const waitingForPair = winningHand.preWinMelds.length === 4;
+  if (waitingForPair) {
+    return false;
+  }
+
+  const isSelfDrawn = winningHand.type === WinningHandType.SelfDraw;
+  if (isSelfDrawn) {
+    return true;
+  }
+
+  const isWaitingForTwoTiles = () => {
+    const allTiles = [
+      ...new Set(SingaporeMahjong.TILE_SET.map((instance) => instance.value)),
+    ];
+    const numberedTiles = allTiles.filter(
+      (tile) => tile instanceof NumberedTile
+    );
+
+    const tileCompletesSequenceHand = (tile: Tile) => {
+      const tiles = [...winningHand.preWinHand, new TileInstance(tile)];
+      const melds = winningHand.preWinMelds;
+      const matchesSequenceHand =
+        StandardCombiMatchers.SEQUENCE_HAND.getFirstMatch(tiles, melds) !==
+        null;
+      return matchesSequenceHand;
+    };
+
+    let count = 0;
+
+    for (const tile of numberedTiles) {
+      if (tileCompletesSequenceHand(tile)) {
+        count++;
+        if (count >= 2) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  return isWaitingForTwoTiles();
+};
+
+export const getWinningHand = (
+  player: ReadonlyPlayer,
+  hand: TileInstance<Tile>[],
+  loneTile: TileInstance<Tile> | null,
+  type: WinningHandType
+): WinningHand | null => {
+  const candidateWinningHand: CandidateWinningHand = {
+    prevailingWind: player.gameHand.prevailingWind,
+    playerWind: player.wind,
+    preWinHand: [...hand],
+    preWinMelds: [...player.melds],
+    bonusTiles: [...player.bonusTiles],
+    type,
+  };
+
+  const standardMatchers = [
+    StandardCombiMatchers.FLUSH,
+    StandardCombiMatchers.TRIPLETS,
+  ];
+
+  const tiles = [...hand];
+  if (loneTile !== null) {
+    tiles.push(loneTile);
+  }
+
+  // Match combinations that do not have special rules
+  const combinations = standardMatchers
+    .map((matcher) => matcher.getFirstMatch(tiles, player.melds))
+    .filter((combi): combi is Combination => combi !== null);
+
+  console.debug(combinations);
+
+  // Match combinations that do have special rules
+  // 1. Sequence hand
+  const sequenceHand = StandardCombiMatchers.SEQUENCE_HAND.getFirstMatch(
+    tiles,
+    player.melds
+  );
+  if (sequenceHand !== null) {
+    const isProper = isProperSequenceHand(
+      candidateWinningHand,
+      sequenceHand.melds
+    );
+    if (isProper) {
+      const isPure = player.bonusTiles.length === 0;
+      combinations.push(
+        new SequenceHandCombination(isPure, sequenceHand.melds)
+      );
+    }
+  }
+
+  // TODO: Implement other combinations
+
+  // If no combination is found, try to match the NORMAL_HAND
+  if (combinations.length === 0) {
+    const normalHand = StandardCombiMatchers.NORMAL_HAND.getFirstMatch(
+      tiles,
+      player.melds
+    );
+    if (normalHand !== null) {
+      combinations.push(normalHand);
     }
   }
 
   if (combinations.length === 0) {
-    const combination = StandardCombiMatchers.NORMAL_HAND.getFirstMatch(
-      tiles,
-      existingMelds
-    );
-    if (combination) {
-      combinations.push(combination);
-    }
+    return null;
+  } else {
+    const winningHand: WinningHand = {
+      ...candidateWinningHand,
+      melds: combinations[0].melds,
+      combinations: combinations,
+    };
+
+    return winningHand;
   }
-  return combinations;
 };
+
+// export const getMatchingCombinations = (
+//   tiles: TileInstance<Tile>[],
+//   existingMelds: MeldInstance<Meld>[]
+// ): Combination[] => {
+//   const combinations: Combination[] = [];
+
+//   for (const matcher of StandardCombiMatchers.NON_EXCLUSIVE_MATCHERS) {
+//     const combination = matcher.getFirstMatch(tiles, existingMelds);
+//     if (combination) {
+//       combinations.push(combination);
+//     }
+//   }
+
+//   if (combinations.length === 0) {
+//     const combination = StandardCombiMatchers.NORMAL_HAND.getFirstMatch(
+//       tiles,
+//       existingMelds
+//     );
+//     if (combination) {
+//       combinations.push(combination);
+//     }
+//   }
+//   return combinations;
+// };

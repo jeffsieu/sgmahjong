@@ -39,7 +39,8 @@
     SkipWindowOfOpportunityAction,
   } from "../game-state/actions";
   import { StandardMahjong } from "../tiles";
-  import { getMatchingCombinations } from "../combis";
+  import { getWinningHand } from "../combis";
+  import { WinningHandType } from "../scoring/scoring";
 
   export let phase: HandPhase;
   export let player: ReadonlyPlayer;
@@ -98,7 +99,7 @@
         name: "Win",
         show: canMahjong,
         onClick: () => {
-          phase.hand.tryExecuteAction(validWOPActions.find(isMahjongAction));
+          phase.hand.tryExecuteAction(validWOPActions.find(isMahjongAction)!);
           onUpdate();
         },
       },
@@ -127,7 +128,7 @@
         name: "Kong",
         show: canKong,
         onClick: () => {
-          phase.hand.tryExecuteAction(validWOPActions.find(isKongAction));
+          phase.hand.tryExecuteAction(validWOPActions.find(isKongAction)!);
           onUpdate();
         },
       },
@@ -135,21 +136,33 @@
         name: "Pong",
         show: canPong,
         onClick: () => {
-          phase.hand.tryExecuteAction(validWOPActions.find(isPongAction));
+          phase.hand.tryExecuteAction(validWOPActions.find(isPongAction)!);
           onUpdate();
         },
       },
     ],
   ];
   $: actionRows = showChowActions ? chowActionRows : regularActionRows;
+  $: latestDrawnTile =
+    phase instanceof ToDiscardPhase ? phase.getLatestDrawnTile() : undefined;
 
-  $: selfDrawCombinations =
-    phase instanceof ToDiscardPhase &&
-    phase.player === player &&
-    getMatchingCombinations(player.hand, player.melds);
+  $: selfDrawWinningHand =
+    phase instanceof ToDiscardPhase && phase.player === player
+      ? getWinningHand(
+          player,
+          [...player.hand].filter((tile) => tile !== latestDrawnTile),
+          latestDrawnTile ?? null,
+          WinningHandType.SelfDraw
+        )
+      : null;
 
-  $: canSelfDrawMahjong =
-    selfDrawCombinations && selfDrawCombinations.length > 0;
+  $: canSelfDrawMahjong = selfDrawWinningHand !== null;
+
+  $: {
+    if (!(phase instanceof WindowOfOpportunityPhase)) {
+      showChowActions = false;
+    }
+  }
 </script>
 
 <Group {...$$restProps} {scene} let:parent>
@@ -210,16 +223,13 @@
       <TextButton
         {scene}
         {parent}
-        text="Zimo"
+        text="Win"
         onClick={() => {
+          if (selfDrawWinningHand === null) {
+            return;
+          }
           phase.hand.tryExecuteAction(
-            new SelfDrawMahjongAction(player, {
-              prevailingWind: player.gameHand.prevailingWind,
-              playerWind: player.wind,
-              melds: selfDrawCombinations[0].melds,
-              combinations: selfDrawCombinations,
-              bonusTiles: player.bonusTiles,
-            })
+            new SelfDrawMahjongAction(player, selfDrawWinningHand)
           );
           onUpdate();
         }}
@@ -258,6 +268,7 @@
       phase = phase;
       onUpdate();
     }}
+    canControl={showControls}
   />
   <TileRow
     {parent}

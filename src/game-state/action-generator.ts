@@ -1,6 +1,7 @@
 import { ChowMatcher, MeldMatcher, PongMatcher } from "../combi-utils";
-import { getMatchingCombinations } from "../combis";
+import { getWinningHand } from "../combis";
 import type { Meld } from "../melds";
+import { WinningHandType } from "../scoring/scoring";
 import type { Tile, TileInstance } from "../tiles";
 import {
   FormMeldAction,
@@ -29,20 +30,17 @@ export const getValidMahjongActions = (
   player: ReadonlyPlayer,
   discardedTile: TileInstance<Tile>
 ): MahjongAction[] => {
-  const combinations = getMatchingCombinations(
-    [discardedTile, ...player.hand],
-    player.melds
+  const winningHand = getWinningHand(
+    player,
+    player.hand,
+    discardedTile,
+    WinningHandType.Discard
   );
-  return combinations.filter((combi) => combi.isWinning).length > 0
-    ? [
-        new MahjongAction(player, discardedTile, {
-          combinations: combinations,
-          prevailingWind: player.gameHand.prevailingWind,
-          playerWind: player.wind,
-          melds: combinations[0].melds,
-          bonusTiles: player.bonusTiles,
-        }),
-      ]
+  console.debug(player.hand);
+  console.debug(discardedTile);
+  console.debug("winningHand", winningHand);
+  return winningHand !== null
+    ? [new MahjongAction(player, discardedTile, winningHand)]
     : [];
 };
 

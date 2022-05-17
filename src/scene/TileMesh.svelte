@@ -26,11 +26,12 @@
   import { afterUpdate, onMount } from "svelte";
 
   export let scene: Scene;
-  export let tile: TileInstance<Tile> = null;
-  export let onPointerOut: (event: CustomEvent) => void = null;
-  export let onPointerOver: (event: CustomEvent) => void = null;
-  export let onClick: (event: CustomEvent) => void = null;
+  export let tile: TileInstance<Tile> | null = null;
+  export let onPointerOut: (event: CustomEvent) => void = () => {};
+  export let onPointerOver: (event: CustomEvent) => void = () => {};
+  export let onClick: (event: CustomEvent) => void = () => {};
   export let highlight: boolean = false;
+  export let hidden: boolean = false;
 
   const whiteTileFace = new MeshStandardMaterial({
     color: TILE_COLOR_FACE,
@@ -41,7 +42,7 @@
   // Define a material with the image only on the front face
   const face: MeshStandardMaterial = tile
     ? new MeshStandardMaterial({
-        map: getTexture(tile.value),
+        map: getTexture(hidden ? null : tile.value),
         roughness: 0.1,
         metalness: 0.5,
         color: TILE_COLOR_FACE,

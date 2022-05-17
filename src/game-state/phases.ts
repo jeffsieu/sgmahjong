@@ -8,6 +8,7 @@ import {
   HandAction,
   MahjongAction,
   NextHandAction,
+  NonTrivialPlayerWindowOfOpportunityAction,
   PlayerWindowOfOpportunityAction,
   RevealBonusTileThenDrawAction,
   SelfDrawMahjongAction,
@@ -16,7 +17,6 @@ import {
   WindowOfOpportunityAction,
 } from "./actions";
 import { Chow } from "../melds";
-import type { WinningHand } from "../scoring/scoring";
 
 export interface ReadonlyHandPhase {
   name: string;
@@ -36,7 +36,7 @@ export abstract class HandPhase {
   abstract tryExecuteAction(action: HandAction): void;
   abstract getErrorForAction(action: HandAction): Error | null;
   abstract isCompleted(): boolean;
-  abstract getNextPhase(): HandPhase;
+  abstract getNextPhase(): HandPhase | null;
 
   canExecuteAction(action: HandAction): boolean {
     return this.getErrorForAction(action) === null;
@@ -128,7 +128,8 @@ export class PostDrawPhase extends PlayerControlledPhase {
     {
       return new ToDiscardPhase(
         this.hand,
-        this.hand.getPlayerWithWind(StandardMahjong.SUIT_EAST)
+        this.hand.getPlayerWithWind(StandardMahjong.SUIT_EAST),
+        null
       );
     }
   }
@@ -139,6 +140,14 @@ export class ToDiscardPhase extends PlayerControlledPhase {
   discardedTile: TileInstance<Tile> | undefined;
   isOver = false;
   isSelfDrawDeclared = false;
+
+  constructor(
+    readonly hand: Hand,
+    readonly player: ReadonlyPlayer,
+    private latestDrawnTile: TileInstance<Tile> | null
+  ) {
+    super(hand, player);
+  }
 
   getErrorForAction(action: HandAction): Error | null {
     const superError = super.getErrorForAction(action);
@@ -151,6 +160,10 @@ export class ToDiscardPhase extends PlayerControlledPhase {
     }
 
     return null;
+  }
+
+  getLatestDrawnTile(): TileInstance<Tile> | null {
+    return this.latestDrawnTile;
   }
 
   tryExecuteAction(action: HandAction): void {
@@ -186,7 +199,7 @@ export class ToDiscardPhase extends PlayerControlledPhase {
       return new WindowOfOpportunityPhase(
         this.hand,
         this.player,
-        this.discardedTile
+        this.discardedTile!
       );
     } else {
       return new EndOfHandPhase(this.hand, this.player);
@@ -196,13 +209,17 @@ export class ToDiscardPhase extends PlayerControlledPhase {
 
 export class ToDrawPhase extends PlayerControlledPhase {
   name = `To Draw (${this.player.wind.name})`;
+  private drawnTile: TileInstance<Tile> | undefined;
 
   tryExecuteAction(action: HandAction): void {
     const error = this.getErrorForAction(action);
     if (error) {
       throw error;
     }
-    action.execute(this.hand);
+
+    if (action instanceof DrawTileAction) {
+      this.drawnTile = action.execute(this.hand);
+    }
   }
 
   getErrorForAction(action: HandAction): Error | null {
@@ -219,11 +236,18 @@ export class ToDrawPhase extends PlayerControlledPhase {
   }
 
   isCompleted(): boolean {
-    return this.player.hand.length + this.player.melds.length * 3 === 14;
+    return (
+      !this.hand.canDraw() ||
+      this.player.hand.length + this.player.melds.length * 3 === 14
+    );
   }
 
   getNextPhase(): HandPhase {
-    return new ToDiscardPhase(this.hand, this.player);
+    if (this.drawnTile !== undefined) {
+      return new ToDiscardPhase(this.hand, this.player, this.drawnTile);
+    } else {
+      return new EndOfHandPhase(this.hand, this.player);
+    }
   }
 }
 
@@ -231,10 +255,12 @@ export class WindowOfOpportunityPhase extends HandPhase {
   name = "Window of Opportunity";
 
   // Represents the actions of each of the consecutive players, in order.
-  actions: Map<ReadonlyPlayer, PlayerWindowOfOpportunityAction> = new Map();
+  actions: Map<ReadonlyPlayer, PlayerWindowOfOpportunityAction | null> =
+    new Map();
 
   private isClosed: boolean = false;
   private executedAction: PlayerWindowOfOpportunityAction | null = null;
+  readonly startTime: number = Date.now();
 
   constructor(
     readonly hand: Hand,
@@ -258,17 +284,16 @@ export class WindowOfOpportunityPhase extends HandPhase {
     if (action instanceof CloseWindowOfOpportunityAction) {
       this.close();
       return;
+    } else if (action instanceof PlayerWindowOfOpportunityAction) {
+      this.actions.set(action.player, action);
     }
 
-    this.actions.set(action.player, action as PlayerWindowOfOpportunityAction);
-
-    console.debug(this.actions);
     if ([...this.actions.values()].every((action) => action !== null)) {
       this.close();
     }
   }
 
-  getErrorForAction(action: HandAction): Error {
+  getErrorForAction(action: HandAction): Error | null {
     if (!(action instanceof WindowOfOpportunityAction)) {
       return new Error("Invalid action.");
     }
@@ -298,19 +323,24 @@ export class WindowOfOpportunityPhase extends HandPhase {
     // Get the action with the highest priority
     const actions = Array.from(this.actions.values());
     const highestPriorityAction = actions
-      .filter((action) => action !== null)
-      .reduce((highestPriorityAction, action) => {
-        if (
-          highestPriorityAction === null ||
-          action.priority > highestPriorityAction.priority
-        ) {
-          return action;
-        }
-        return highestPriorityAction;
-      }, null);
-
-    console.debug("Highest priority action:");
-    console.debug(highestPriorityAction);
+      .filter(
+        (action): action is PlayerWindowOfOpportunityAction => action !== null
+      )
+      .reduce(
+        (
+          highestPriorityAction: NonTrivialPlayerWindowOfOpportunityAction | null,
+          action: NonTrivialPlayerWindowOfOpportunityAction
+        ) => {
+          if (
+            highestPriorityAction === null ||
+            action.priority > highestPriorityAction.priority
+          ) {
+            return action;
+          }
+          return highestPriorityAction;
+        },
+        null
+      );
 
     // If all players skipped, no action was executed.
     if (
@@ -333,10 +363,12 @@ export class WindowOfOpportunityPhase extends HandPhase {
     if (this.executedAction === null) {
       return new ToDrawPhase(this.hand, this.hand.getPlayerAfter(this.player));
     } else {
-      if (this.executedAction instanceof FormMeldAction) {
-        return new ToDiscardPhase(this.hand, this.executedAction.player);
-      } else if (this.executedAction instanceof MahjongAction) {
-        return new EndOfHandPhase(this.hand, this.executedAction.player);
+      if (
+        this.executedAction instanceof NonTrivialPlayerWindowOfOpportunityAction
+      ) {
+        return this.executedAction.getNextPhase(this);
+      } else {
+        throw new Error("Invalid action.");
       }
     }
   }
@@ -357,7 +389,7 @@ export class EndOfHandPhase extends PlayerControlledPhase {
     this.isOver = true;
   }
 
-  getErrorForAction(action: HandAction): Error {
+  getErrorForAction(action: HandAction): Error | null {
     if (!(action instanceof NextHandAction)) {
       return new Error("Invalid action.");
     }
@@ -369,7 +401,7 @@ export class EndOfHandPhase extends PlayerControlledPhase {
     return this.isOver;
   }
 
-  getNextPhase(): HandPhase {
+  getNextPhase(): HandPhase | null {
     return null;
   }
 }

@@ -8,7 +8,10 @@ import {
   SingaporeMahjong,
 } from "../tiles";
 
-const getTextureName = (tile: Tile): string => {
+const getTextureName = (tile: Tile | null): string => {
+  if (tile === null) {
+    return "Blank.png";
+  }
   if (tile instanceof NumberedTile) {
     if (tile.suit === StandardMahjong.SUIT_BAMBOOS) {
       return `Sou${tile.value}.png`;
@@ -44,11 +47,12 @@ const getTextureName = (tile: Tile): string => {
       return `${tile.type}.png`;
     }
   }
+  throw new Error(`Unknown tile type: ${tile}`);
 };
 
 const textureCache: Map<string, Texture> = new Map();
 
-export const getTexture = (tile: Tile): Texture => {
+export const getTexture = (tile: Tile | null): Texture => {
   const textureName = getTextureName(tile);
   if (textureCache.has(textureName)) {
     return textureCache.get(textureName)!;
