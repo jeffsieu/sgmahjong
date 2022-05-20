@@ -1,4 +1,4 @@
-import { type Texture, TextureLoader } from "svelthree";
+import { type Texture, TextureLoader } from "three";
 import {
   type Tile,
   NumberedTile,
@@ -8,7 +8,7 @@ import {
   SingaporeMahjong,
 } from "../tiles";
 
-const getTextureName = (tile: Tile | null): string => {
+export const getTextureName = (tile: Tile | null): string => {
   if (tile === null) {
     return "Blank.png";
   }

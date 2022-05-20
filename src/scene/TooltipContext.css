@@ -1,0 +1,14 @@
+.tooltip-container {
+  position: absolute;
+  pointer-events: none;
+  left: 0;
+  top: 0;
+}
+
+.tooltip {
+  background-color: #000000aa;
+  color: white;
+  border-radius: 8px;
+  padding: 16px;
+  font-family: Poppins, sans-serif;
+}

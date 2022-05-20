@@ -23,16 +23,17 @@ export class DrawTileAction implements HandAction {
 }
 
 export abstract class ToDiscardAction implements HandAction {
-  player: ReadonlyPlayer;
+  constructor(readonly player: ReadonlyPlayer) {}
+
   abstract execute(hand: Hand): any;
 }
 
 export class RevealBonusTileThenDrawAction extends ToDiscardAction {
   constructor(
-    readonly player: ReadonlyPlayer,
+    player: ReadonlyPlayer,
     readonly bonusTile: TileInstance<BonusTile>
   ) {
-    super();
+    super(player);
   }
 
   execute(hand: Hand): void {
@@ -42,8 +43,8 @@ export class RevealBonusTileThenDrawAction extends ToDiscardAction {
 }
 
 export class DiscardTileAction extends ToDiscardAction {
-  constructor(readonly player: ReadonlyPlayer, readonly position: number) {
-    super();
+  constructor(player: ReadonlyPlayer, readonly position: number) {
+    super(player);
   }
 
   execute(hand: Hand): TileInstance<Tile> {
@@ -57,7 +58,7 @@ export class SelfDrawMahjongAction extends ToDiscardAction {
     readonly player: ReadonlyPlayer,
     readonly winningHand: WinningHand
   ) {
-    super();
+    super(player);
   }
 
   execute(hand: Hand): void {
@@ -78,11 +79,9 @@ export abstract class WindowOfOpportunityAction implements HandAction {
 }
 
 export abstract class PlayerWindowOfOpportunityAction extends WindowOfOpportunityAction {
-  constructor(readonly player: ReadonlyPlayer) {
+  constructor(readonly player: ReadonlyPlayer, readonly priority: number) {
     super(player);
   }
-
-  readonly priority: number;
 }
 
 export abstract class NonTrivialPlayerWindowOfOpportunityAction extends PlayerWindowOfOpportunityAction {
@@ -90,15 +89,12 @@ export abstract class NonTrivialPlayerWindowOfOpportunityAction extends PlayerWi
 }
 
 export class FormMeldAction extends NonTrivialPlayerWindowOfOpportunityAction {
-  readonly priority: number;
-
   constructor(
     readonly player: ReadonlyPlayer,
     readonly meld: MeldInstance<Meld>,
     readonly discardedTile: TileInstance<Tile>
   ) {
-    super(player);
-    this.priority = meld.value instanceof Pong ? 2 : 1;
+    super(player, meld.value instanceof Pong ? 2 : 1);
   }
 
   execute(hand: Hand): void {
@@ -136,15 +132,12 @@ export const isSkipAction = (
   action instanceof SkipWindowOfOpportunityAction;
 
 export class MahjongAction extends NonTrivialPlayerWindowOfOpportunityAction {
-  readonly priority: number;
-
   constructor(
     readonly player: ReadonlyPlayer,
     readonly discardedTile: TileInstance<Tile>,
     readonly winningHand: WinningHand
   ) {
-    super(player);
-    this.priority = 3;
+    super(player, 3);
   }
 
   execute(hand: Hand): void {
@@ -164,7 +157,9 @@ export class MahjongAction extends NonTrivialPlayerWindowOfOpportunityAction {
 }
 
 export class SkipWindowOfOpportunityAction extends PlayerWindowOfOpportunityAction {
-  priority: number = 0;
+  constructor(player: ReadonlyPlayer) {
+    super(player, 0);
+  }
 
   execute(hand: Hand): void {}
 }
@@ -178,7 +173,7 @@ export class CloseWindowOfOpportunityAction extends WindowOfOpportunityAction {
 }
 
 export class NextHandAction implements HandAction {
-  player: ReadonlyPlayer;
+  readonly player: ReadonlyPlayer | null = null;
 
   execute(hand: Hand): void {
     hand.finish();

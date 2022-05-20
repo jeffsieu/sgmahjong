@@ -146,7 +146,7 @@ export class Hand implements PlayerUI, ReadonlyHand {
   readonly discardPile: TileInstance<Tile>[] = [];
   protected isOver: boolean = false;
   protected currentPhase: HandPhase;
-  protected winningHand: WinningHand | null;
+  protected winningHand: WinningHand | null = null;
 
   constructor(
     readonly prevailingWind: Wind,

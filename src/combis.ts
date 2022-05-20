@@ -12,8 +12,6 @@ import type { ReadonlyPlayer } from "./game-state/game-state";
 import { EyePair, Meld, MeldInstance } from "./melds";
 import {
   CandidateWinningHand,
-  DoubleProvider,
-  getWinningHandDoubles,
   WinningHand,
   WinningHandType,
 } from "./scoring/scoring";
@@ -24,7 +22,6 @@ import {
   StandardMahjong,
   Tile,
   TileInstance,
-  Wind,
 } from "./tiles";
 
 export namespace StandardCombiMatchers {

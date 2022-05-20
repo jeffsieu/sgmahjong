@@ -6,7 +6,6 @@ import {
   DrawTileAction,
   FormMeldAction,
   HandAction,
-  MahjongAction,
   NextHandAction,
   NonTrivialPlayerWindowOfOpportunityAction,
   PlayerWindowOfOpportunityAction,
@@ -29,9 +28,7 @@ export interface ReadonlyHandPhase {
 }
 
 export abstract class HandPhase {
-  name: string;
-
-  constructor(readonly hand: Hand) {}
+  constructor(readonly name: string, readonly hand: Hand) {}
 
   abstract tryExecuteAction(action: HandAction): void;
   abstract getErrorForAction(action: HandAction): Error | null;
@@ -44,8 +41,8 @@ export abstract class HandPhase {
 }
 
 export abstract class PlayerControlledPhase extends HandPhase {
-  constructor(readonly hand: Hand, readonly player: ReadonlyPlayer) {
-    super(hand);
+  constructor(name: string, hand: Hand, readonly player: ReadonlyPlayer) {
+    super(name, hand);
   }
 
   getErrorForAction(action: HandAction): Error | null {
@@ -57,7 +54,6 @@ export abstract class PlayerControlledPhase extends HandPhase {
 }
 
 export class PostDrawPhase extends PlayerControlledPhase {
-  name = `Post Draw (${this.index + 1})`;
   tilesToShow: TileInstance<BonusTile>[] = this.player.hand.filter(
     (tile): tile is TileInstance<BonusTile> => tile.value instanceof BonusTile
   );
@@ -67,7 +63,7 @@ export class PostDrawPhase extends PlayerControlledPhase {
     readonly player: ReadonlyPlayer,
     readonly index: number
   ) {
-    super(hand, player);
+    super(`Post Draw (${index + 1})`, hand, player);
   }
 
   tryExecuteAction(action: HandAction): void {
@@ -99,7 +95,7 @@ export class PostDrawPhase extends PlayerControlledPhase {
   }
 
   isCompleted(): boolean {
-    return this.tilesToShow.length == 0;
+    return this.tilesToShow.length === 0;
   }
 
   getNextPhase(): HandPhase {
@@ -125,28 +121,26 @@ export class PostDrawPhase extends PlayerControlledPhase {
         this.index + 1
       );
     }
-    {
-      return new ToDiscardPhase(
-        this.hand,
-        this.hand.getPlayerWithWind(StandardMahjong.SUIT_EAST),
-        null
-      );
-    }
+
+    return new ToDiscardPhase(
+      this.hand,
+      this.hand.getPlayerWithWind(StandardMahjong.SUIT_EAST),
+      null
+    );
   }
 }
 
 export class ToDiscardPhase extends PlayerControlledPhase {
-  name = `To Discard (${this.player.wind.name})`;
   discardedTile: TileInstance<Tile> | undefined;
   isOver = false;
   isSelfDrawDeclared = false;
 
   constructor(
-    readonly hand: Hand,
-    readonly player: ReadonlyPlayer,
+    hand: Hand,
+    player: ReadonlyPlayer,
     private latestDrawnTile: TileInstance<Tile> | null
   ) {
-    super(hand, player);
+    super(`To Discard (${player.wind.name})`, hand, player);
   }
 
   getErrorForAction(action: HandAction): Error | null {
@@ -208,8 +202,11 @@ export class ToDiscardPhase extends PlayerControlledPhase {
 }
 
 export class ToDrawPhase extends PlayerControlledPhase {
-  name = `To Draw (${this.player.wind.name})`;
   private drawnTile: TileInstance<Tile> | undefined;
+
+  constructor(hand: Hand, player: ReadonlyPlayer) {
+    super(`To Draw (${player.wind.name})`, hand, player);
+  }
 
   tryExecuteAction(action: HandAction): void {
     const error = this.getErrorForAction(action);
@@ -252,8 +249,6 @@ export class ToDrawPhase extends PlayerControlledPhase {
 }
 
 export class WindowOfOpportunityPhase extends HandPhase {
-  name = "Window of Opportunity";
-
   // Represents the actions of each of the consecutive players, in order.
   actions: Map<ReadonlyPlayer, PlayerWindowOfOpportunityAction | null> =
     new Map();
@@ -267,7 +262,7 @@ export class WindowOfOpportunityPhase extends HandPhase {
     readonly player: ReadonlyPlayer,
     readonly discardedTile: TileInstance<Tile>
   ) {
-    super(hand);
+    super("Window of Opportunity", hand);
     for (const player of this.hand
       .getOrderedPlayersFrom(this.player.wind)
       .slice(1)) {
@@ -324,7 +319,8 @@ export class WindowOfOpportunityPhase extends HandPhase {
     const actions = Array.from(this.actions.values());
     const highestPriorityAction = actions
       .filter(
-        (action): action is PlayerWindowOfOpportunityAction => action !== null
+        (action): action is NonTrivialPlayerWindowOfOpportunityAction =>
+          action instanceof NonTrivialPlayerWindowOfOpportunityAction
       )
       .reduce(
         (
@@ -375,7 +371,9 @@ export class WindowOfOpportunityPhase extends HandPhase {
 }
 
 export class EndOfHandPhase extends PlayerControlledPhase {
-  name = "End of Hand";
+  constructor(hand: Hand, player: ReadonlyPlayer) {
+    super("End of Hand", hand, player);
+  }
 
   private isOver: boolean = false;
 

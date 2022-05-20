@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import type { Material } from "svelthree";
+import type { Material } from "three";
 
 export const animateMaterial = (material: Material) => {
   gsap.timeline({ repeat: -1, yoyo: true }).fromTo(
