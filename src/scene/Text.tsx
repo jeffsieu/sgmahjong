@@ -1,19 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import { MeshProps } from "react-three-fiber";
+import { useEffect, useMemo, useState } from 'react';
+import { MeshProps } from 'react-three-fiber';
 import {
   Color,
   DoubleSide,
   MeshStandardMaterial,
   ShapeBufferGeometry,
-} from "three";
+} from 'three';
 
-import { Font, FontLoader } from "three/examples/jsm/loaders/FontLoader";
-import { WithoutGeoMat } from "./object-props";
+import { Font, FontLoader } from 'three/examples/jsm/loaders/FontLoader';
+import { WithoutGeoMat } from './object-props';
 
 export type TextProps = {
   text: string;
   color: string | Color | number;
   size: number;
+  monospace?: boolean;
   onGeometry?: (loadedGeometry: ShapeBufferGeometry) => void;
 };
 
@@ -22,13 +23,19 @@ const Text = ({
   color,
   size,
   onGeometry,
+  monospace = false,
   ...rest
 }: WithoutGeoMat<MeshProps> & TextProps) => {
   const [font, setFont] = useState<Font | null>(null);
 
-  new FontLoader().load("Poppins_Regular.json", (loadedFont) => {
-    setFont(loadedFont);
-  });
+  useEffect(() => {
+    const fontJson = monospace
+      ? 'Courier Prime_Regular.json'
+      : 'Poppins_Regular.json';
+    new FontLoader().load(fontJson, (loadedFont) => {
+      setFont(loadedFont);
+    });
+  }, [monospace]);
 
   const geometry = useMemo(() => {
     return font

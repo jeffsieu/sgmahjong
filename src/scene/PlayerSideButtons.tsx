@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { GroupProps } from "react-three-fiber";
-import { Vector3 } from "three";
-import { WithoutGeoMat } from "./object-props";
-import TextButton from "./TextButton";
+import { useState } from 'react';
+import { GroupProps } from 'react-three-fiber';
+import { Vector3 } from 'three';
+import { WithoutGeoMat } from './object-props';
+import TextButton from './TextButton';
 
 export type ButtonAction = {
   name: string;

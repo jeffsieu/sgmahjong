@@ -1,6 +1,6 @@
-import { Vector3 } from "three";
-import type { ReadonlyPlayer } from "../game-state/game-state";
-import type { PlayerUI } from "../controls/hand-control";
+import { Vector3 } from 'three';
+import type { ReadonlyPlayer } from '../game-state/game-state';
+import type { PlayerUI } from '../controls/hand-control';
 import {
   TILE_HEIGHT,
   TILE_THICKNESS,
@@ -12,20 +12,21 @@ import {
   REVEALED_TILE_DISTANCE,
   CENTER_SQUARE_LENGTH,
   WALL_TILT,
-} from "./constants";
+} from './constants';
 
-import PlayerHand from "./PlayerHand";
-import TileRow from "./TileRow";
-import Text from "./Text";
-import PlayerTurnIndicator from "./turn-indicator/PlayerTurnIndicator";
-import TextButton from "./TextButton";
-import PlayerSideButtons from "./PlayerSideButtons";
+import PlayerHand from './PlayerHand';
+import TileRow from './TileRow';
+import Text from './Text';
+import PlayerTurnIndicator from './turn-indicator/PlayerTurnIndicator';
+import TextButton from './TextButton';
+import PlayerSideButtons from './PlayerSideButtons';
+import PlayerRevealedTiles from './PlayerRevealedTiles';
 import {
   HandPhase,
   ToDiscardPhase,
   WindowOfOpportunityPhase,
-} from "../game-state/phases";
-import { getValidWindowOfOpportunityActions } from "../game-state/action-generator";
+} from '../game-state/phases';
+import { getValidWindowOfOpportunityActions } from '../game-state/action-generator';
 import {
   isChowAction,
   isKongAction,
@@ -34,14 +35,14 @@ import {
   isSkipAction,
   SelfDrawMahjongAction,
   SkipWindowOfOpportunityAction,
-} from "../game-state/actions";
-import {} from "../tiles";
-import { getWinningHand } from "../combis";
-import { WinningHandType } from "../scoring/scoring";
-import { WithoutGeoMat } from "./object-props";
-import { GroupProps } from "react-three-fiber";
-import { useContext, useEffect, useState } from "react";
-import { GameContext } from "../GameContext";
+} from '../game-state/actions';
+import {} from '../tiles';
+import { getWinningHand } from '../combis';
+import { WinningHandType } from '../scoring/scoring';
+import { WithoutGeoMat } from './object-props';
+import { GroupProps } from 'react-three-fiber';
+import { useContext, useEffect, useState } from 'react';
+import { GameContext } from '../GameContext';
 
 export type PlayerSideProps = {
   phase: HandPhase;
@@ -63,11 +64,6 @@ const PlayerSide = ({
   const onUpdate = gameContext.update;
 
   const buttonSize = 1.1;
-
-  const revealedTiles = [
-    ...player.bonusTiles,
-    ...player.melds.flatMap((meld) => meld.tiles),
-  ];
 
   const validWOPActions =
     phase instanceof WindowOfOpportunityPhase
@@ -94,7 +90,7 @@ const PlayerSide = ({
     [],
     [
       {
-        name: "Back",
+        name: 'Back',
         show: true,
         onClick: () => {
           setShowChowActions(false);
@@ -106,7 +102,7 @@ const PlayerSide = ({
   const regularActionRows = [
     [
       {
-        name: "Win",
+        name: 'Win',
         show: canMahjong,
         onClick: () => {
           phase.hand.tryExecuteAction(validWOPActions.find(isMahjongAction)!);
@@ -114,7 +110,7 @@ const PlayerSide = ({
         },
       },
       {
-        name: "Skip",
+        name: 'Skip',
         show: canSkip,
         onClick: () => {
           phase.hand.tryExecuteAction(
@@ -126,7 +122,7 @@ const PlayerSide = ({
     ],
     [
       {
-        name: "Chow",
+        name: 'Chow',
         show: canChow,
         onClick: () => {
           setShowChowActions(true);
@@ -135,7 +131,7 @@ const PlayerSide = ({
     ],
     [
       {
-        name: "Kong",
+        name: 'Kong',
         show: canKong,
         onClick: () => {
           phase.hand.tryExecuteAction(validWOPActions.find(isKongAction)!);
@@ -143,7 +139,7 @@ const PlayerSide = ({
         },
       },
       {
-        name: "Pong",
+        name: 'Pong',
         show: canPong,
         onClick: () => {
           phase.hand.tryExecuteAction(validWOPActions.find(isPongAction)!);
@@ -181,7 +177,7 @@ const PlayerSide = ({
         chowActions.map((action, index) => (
           <TileRow
             highlightOnHover
-            tooltip={"Chow"}
+            tooltip={'Chow'}
             onClick={action.onClick}
             tiles={action.meld.tiles}
             faceUp
@@ -266,10 +262,11 @@ const PlayerSide = ({
         position={[0, 0, TILE_HEIGHT / 2]}
         canControl={showControls}
       />
-      <TileRow
-        tiles={revealedTiles}
-        faceUp={true}
+      <PlayerRevealedTiles
         position={[-5 * TILE_WIDTH, REVEALED_TILE_DISTANCE, TILE_THICKNESS / 2]}
+        bonusTiles={[...player.bonusTiles]}
+        melds={[...player.melds]}
+        player={player}
       />
     </group>
   );

@@ -1,8 +1,8 @@
 import type {
-  DoubleProvider,
-  WindDependentDoubleProvider,
-} from "./scoring/scoring";
-import { tileToChar } from "./tile-ascii";
+  NamedDoubleProvider,
+  WindDependentNamedDoubleProvider,
+} from './scoring/scoring';
+import { tileToChar } from './tile-ascii';
 
 export interface Suit {
   readonly name: string;
@@ -54,36 +54,42 @@ export class NumberedTile extends StandardTile {
 }
 
 export abstract class HonorTile extends StandardTile {
-  abstract getPongValue(mainWind: Wind, playerWind: Wind): DoubleProvider;
+  abstract getPongValue(mainWind: Wind, playerWind: Wind): NamedDoubleProvider;
 }
 
 export class DragonTile extends HonorTile {
-  getPongValue(mainWind: Wind, playerWind: Wind): DoubleProvider {
-    return () => {
-      return 1;
-    };
+  getPongValue(mainWind: Wind, playerWind: Wind): NamedDoubleProvider {
+    return () => ({
+      name: 'Dragon tile',
+      score: 1,
+    });
   }
 }
 
 export class WindTile extends HonorTile {
-  constructor(suit: Wind) {
-    super(suit);
-  }
-
-  getPongValue(mainWind: Wind, playerWind: Wind): DoubleProvider {
-    return () => {
-      const mainWindBonus = mainWind === this.suit ? 1 : 0;
-      const playerWindBonus = playerWind === this.suit ? 1 : 0;
-      return mainWindBonus + playerWindBonus;
-    };
+  getPongValue(mainWind: Wind, playerWind: Wind): NamedDoubleProvider {
+    const mainWindBonus = mainWind === this.suit ? 1 : 0;
+    const playerWindBonus = playerWind === this.suit ? 1 : 0;
+    const mainWindDescription = mainWind === this.suit ? 'prevailing wind' : '';
+    const playerWindDescription = playerWind === this.suit ? 'player wind' : '';
+    const description = [mainWindDescription, playerWindDescription].join(
+      ' + '
+    );
+    return () => ({
+      name: `Wind tile (${description})`,
+      score: mainWindBonus + playerWindBonus,
+    });
   }
 }
 
 export abstract class BonusTile
   extends Tile
-  implements WindDependentDoubleProvider
+  implements WindDependentNamedDoubleProvider
 {
-  abstract resolveWithWind(mainWind: Suit, playerWind: Suit): DoubleProvider;
+  abstract resolveWithWind(
+    mainWind: Suit,
+    playerWind: Suit
+  ): NamedDoubleProvider;
 }
 
 export class FlowerTile extends BonusTile {
@@ -95,57 +101,58 @@ export class FlowerTile extends BonusTile {
     this.index = StandardMahjong.SUIT_WINDS.indexOf(wind);
   }
 
-  resolveWithWind(mainWind: Wind, playerWind: Wind): DoubleProvider {
-    return () => {
-      const playerWindBonus = playerWind === this.wind ? 1 : 0;
-      return playerWindBonus;
-    };
+  resolveWithWind(mainWind: Wind, playerWind: Wind): NamedDoubleProvider {
+    const playerWindBonus = playerWind === this.wind ? 1 : 0;
+    return () => ({
+      name: 'Flower tile',
+      score: playerWindBonus,
+    });
   }
 }
 
 export namespace StandardMahjong {
   export const SUIT_CHARACTERS: Suit = {
-    name: "Characters",
+    name: 'Characters',
   };
 
   export const SUIT_BAMBOOS: Suit = {
-    name: "Bamboo",
+    name: 'Bamboo',
   };
 
   export const SUIT_DOTS: Suit = {
-    name: "Dots",
+    name: 'Dots',
   };
 
   export const SUIT_NUMBERED = [SUIT_CHARACTERS, SUIT_DOTS, SUIT_BAMBOOS];
 
   export const SUIT_NORTH: Suit = {
-    name: "North",
+    name: 'North',
   };
 
   export const SUIT_SOUTH: Suit = {
-    name: "South",
+    name: 'South',
   };
 
   export const SUIT_EAST: Suit = {
-    name: "East",
+    name: 'East',
   };
 
   export const SUIT_WEST: Suit = {
-    name: "West",
+    name: 'West',
   };
 
   export const SUIT_WINDS = [SUIT_EAST, SUIT_SOUTH, SUIT_WEST, SUIT_NORTH];
 
   export const SUIT_DRAGON_RED: Suit = {
-    name: "Red Dragon",
+    name: 'Red Dragon',
   };
 
   export const SUIT_DRAGON_GREEN: Suit = {
-    name: "Green Dragon",
+    name: 'Green Dragon',
   };
 
   export const SUIT_DRAGON_WHITE: Suit = {
-    name: "White Dragon",
+    name: 'White Dragon',
   };
 
   export const SUIT_DRAGONS = [
@@ -157,11 +164,11 @@ export namespace StandardMahjong {
   export const SUIT_HONORS = [...SUIT_WINDS, ...SUIT_DRAGONS];
 
   export const SUIT_FLOWER_1: Suit = {
-    name: "Flower 1",
+    name: 'Flower 1',
   };
 
   export const SUIT_FLOWER_2: Suit = {
-    name: "Flower 2",
+    name: 'Flower 2',
   };
 
   export const SUIT_FLOWERS = [SUIT_FLOWER_1, SUIT_FLOWER_2];
@@ -182,22 +189,23 @@ export namespace StandardMahjong {
 
 export namespace SingaporeMahjong {
   export const SUIT_ANIMALS: Suit = {
-    name: "Animals",
+    name: 'Animals',
   };
 
-  export const ANIMALS: Animal[] = ["Cat", "Mouse", "Chicken", "Centipede"];
+  export const ANIMALS: Animal[] = ['Cat', 'Mouse', 'Chicken', 'Centipede'];
 
-  export type Animal = "Cat" | "Mouse" | "Chicken" | "Centipede";
+  export type Animal = 'Cat' | 'Mouse' | 'Chicken' | 'Centipede';
 
   export class AnimalTile extends BonusTile {
     constructor(suit: Suit, readonly type: Animal) {
       super(suit);
     }
 
-    resolveWithWind(mainWind: Suit, playerWind: Suit): DoubleProvider {
-      return () => {
-        return 1;
-      };
+    resolveWithWind(mainWind: Suit, playerWind: Suit): NamedDoubleProvider {
+      return () => ({
+        name: 'Animal tile',
+        score: 1,
+      });
     }
   }
 

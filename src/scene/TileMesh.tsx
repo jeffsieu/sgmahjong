@@ -1,28 +1,29 @@
-import { useMemo } from "react";
-import { GroupProps, ThreeEvent } from "react-three-fiber";
-import { FrontSide } from "three";
+import { useMemo } from 'react';
+import { GroupProps, ThreeEvent } from 'react-three-fiber';
+import { FrontSide } from 'three';
 import {
   BoxGeometry,
   MeshStandardMaterial,
   Color,
   Vector3,
   Plane,
-} from "three";
+} from 'three';
 
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
-import type { Tile, TileInstance } from "../tiles";
+import type { Tile, TileInstance } from '../tiles';
 import {
+  TILE_BACK_RATIO,
   TILE_COLOR_FACE,
   TILE_FRONT_EXTRA_SIZE,
   TILE_HEIGHT,
   TILE_RADIUS,
   TILE_THICKNESS,
   TILE_WIDTH,
-} from "./constants";
-import { WithoutGeoMat } from "./object-props";
+} from './constants';
+import { WithoutGeoMat } from './object-props';
 
-import { getTexture } from "./texture-utils";
+import { getTexture } from './texture-utils';
 
 export type TileMeshProps = {
   tile: TileInstance<Tile> | null;
@@ -33,45 +34,21 @@ export type TileMeshProps = {
   onTileClick?: (event: ThreeEvent<MouseEvent>) => void;
 };
 
-const whiteTileFace = new MeshStandardMaterial({
-  color: TILE_COLOR_FACE,
-  roughness: 0.1,
-  metalness: 0.5,
-});
-
-const baseTileMaterial = whiteTileFace;
-
-const baseBackMaterial = new MeshStandardMaterial({
-  color: 0x2b71d9,
-  roughness: 0.1,
-  metalness: 0.5,
-  clippingPlanes: [new Plane(new Vector3(0, 0, 1), 3)],
-});
-
-const highlightedBackMaterial = new MeshStandardMaterial({
-  color: new Color(0x2b71d9).offsetHSL(0, 0, 0.1),
-  roughness: 0.1,
-  metalness: 0.5,
-});
-
-const highlightedTileMaterial = baseTileMaterial.clone();
-highlightedTileMaterial.color = new Color(TILE_COLOR_FACE).offsetHSL(0, 0, 0.1);
-
 const tileBackGeometry = new RoundedBoxGeometry(
   TILE_WIDTH,
   TILE_HEIGHT,
-  TILE_THICKNESS / 2 + TILE_RADIUS,
+  TILE_BACK_RATIO * TILE_THICKNESS + TILE_RADIUS,
   8,
   TILE_RADIUS
-) as unknown as BoxGeometry;
+);
 
 const tileFrontGeometry = new RoundedBoxGeometry(
   TILE_WIDTH + TILE_FRONT_EXTRA_SIZE,
   TILE_HEIGHT + TILE_FRONT_EXTRA_SIZE,
-  TILE_THICKNESS / 2 + TILE_RADIUS,
+  (1 - TILE_BACK_RATIO) * TILE_THICKNESS,
   8,
   TILE_RADIUS
-) as unknown as BoxGeometry;
+);
 
 const TileMesh = ({
   tile,
@@ -86,38 +63,54 @@ const TileMesh = ({
     return tile ? getTexture(hidden ? null : tile.value) : null;
   }, [tile, hidden]);
 
-  // Define a material with the image only on the front face
-  // const face = useMemo(() => {
-  //   console.log("yikes");
-  //   const material = tile
-  //     ? new MeshStandardMaterial({
-  //         map: faceTexture,
-  //         roughness: 0.1,
-  //         metalness: 0.5,
-  //         color: TILE_COLOR_FACE,
-  //         opacity: 1,
-  //       })
-  //     : whiteTileFace;
+  const baseTileMaterial = useMemo(
+    () =>
+      new MeshStandardMaterial({
+        color: TILE_COLOR_FACE,
+        roughness: 0.1,
+        metalness: 0.5,
+      }),
+    []
+  );
 
-  //   // Make the color of the face show underneath the transparent tile face
-  //   material.onBeforeCompile = function (shader: Shader) {
-  //     const custom_map_fragment = ShaderChunk.map_fragment.replace(
-  //       `diffuseColor *= texelColor;`,
+  const highlightedBackMaterial = useMemo(
+    () =>
+      new MeshStandardMaterial({
+        color: new Color(0x2b71d9).offsetHSL(0, 0, 0.1),
+        roughness: 0.1,
+        metalness: 0.5,
+      }),
+    []
+  );
 
-  //       `diffuseColor = vec4( mix( diffuse, texelColor.rgb, texelColor.a ), opacity );`
-  //     );
+  const highlightedTileMaterial = useMemo(() => {
+    const highlightedTileMaterial = baseTileMaterial.clone();
+    highlightedTileMaterial.color = new Color(TILE_COLOR_FACE).offsetHSL(
+      0,
+      0,
+      0.1
+    );
+    return highlightedTileMaterial;
+  }, [baseTileMaterial]);
 
-  //     shader.fragmentShader = shader.fragmentShader.replace(
-  //       "#include <map_fragment>",
-  //       custom_map_fragment
-  //     );
-  //   };
+  const baseBackMaterial = useMemo(
+    () =>
+      new MeshStandardMaterial({
+        color: new Color(0x2b71d9),
+        roughness: 0.1,
+        metalness: 0.5,
+      }),
+    []
+  );
 
-  //   return material;
-  // }, [tile, faceTexture, whiteTileFace]);
-
-  const backMaterial = highlight ? highlightedBackMaterial : baseBackMaterial;
-  const tileMaterial = highlight ? highlightedTileMaterial : baseTileMaterial;
+  const backMaterial = useMemo(
+    () => (highlight ? highlightedBackMaterial : baseBackMaterial),
+    [highlight, highlightedBackMaterial, baseBackMaterial]
+  );
+  const tileMaterial = useMemo(
+    () => (highlight ? highlightedTileMaterial : baseTileMaterial),
+    [baseTileMaterial, highlight, highlightedTileMaterial]
+  );
 
   return (
     <group {...rest}>
@@ -140,17 +133,24 @@ const TileMesh = ({
         onClick={onTileClick}
         castShadow
         receiveShadow
-        position={[0, 0, TILE_THICKNESS / 4 - TILE_RADIUS / 2]}
+        position={[
+          0,
+          0,
+          TILE_THICKNESS * (0.5 - TILE_BACK_RATIO / 2) - TILE_RADIUS,
+        ]}
         geometry={tileBackGeometry}
         material={backMaterial}
-      />
+      ></mesh>
       <mesh
         onPointerOut={onTilePointerOut}
         onPointerOver={onTilePointerOver}
-        onClick={onTileClick}
+        onClick={(event) => {
+          onTileClick?.(event);
+          event.stopPropagation();
+        }}
         castShadow
         receiveShadow
-        position={[0, 0, -TILE_THICKNESS / 4 + TILE_RADIUS / 2]}
+        position={[0, 0, -TILE_THICKNESS * (0.5 - (1 - TILE_BACK_RATIO) / 2)]}
         geometry={tileFrontGeometry}
         material={tileMaterial}
       />

@@ -1,27 +1,26 @@
-import type { Hand } from "../game-state/game-state";
+import type { Hand } from '../game-state/game-state';
 import {
   DoubleSide,
   PlaneBufferGeometry,
   Vector3,
   MeshStandardMaterial,
-} from "three";
-import { TABLE_WIDTH, HAND_TO_TABLE_EDGE, WALL_TILT } from "./constants";
+} from 'three';
+import { TABLE_WIDTH, HAND_TO_TABLE_EDGE, WALL_TILT } from './constants';
 
-import { DrawTileAction } from "../game-state/actions";
-import { useContext } from "react";
-import { HandPhase, PlayerControlledPhase } from "../game-state/phases";
-import { StandardMahjong } from "../tiles";
-import CenterTurnIndicator from "./turn-indicator/CenterTurnIndicator";
-import Walls from "./Walls";
-import DiscardPile from "./DiscardPile";
-import PlayerSide from "./PlayerSide";
-import { GameContext } from "../GameContext";
-// import DiscardPile from "./DiscardPile.svelte";
-// import Walls from "./Walls.svelte";
-// import Group from "../svelthree-patch/Group.svelte";
-// import { PlayerControlledPhase } from "../game-state/phases";
-// import CenterTurnIndicator from "./turn-indicator/CenterTurnIndicator.svelte";
-// import { StandardMahjong } from "../tiles";
+import { DrawTileAction } from '../game-state/actions';
+import { useContext, useEffect } from 'react';
+import {
+  HandPhase,
+  PlayerControlledPhase,
+  WindowOfOpportunityPhase,
+} from '../game-state/phases';
+import { StandardMahjong } from '../tiles';
+import CenterTurnIndicator from './turn-indicator/CenterTurnIndicator';
+import Walls from './Walls';
+import DiscardPile from './DiscardPile';
+import PlayerSide from './PlayerSide';
+import { GameContext } from '../GameContext';
+import Text from './Text';
 
 export type TableProps = {
   hand: Hand;
@@ -43,6 +42,14 @@ const Table = ({ hand, phase }: TableProps) => {
   const discardPile = hand.discardPile;
   const wallStacks = hand.physicalWall.wallStacks;
 
+  useEffect(() => {
+    if (phase instanceof WindowOfOpportunityPhase) {
+      setTimeout(() => {
+        gameContext.update();
+      }, 100);
+    }
+  }, [phase, gameContext]);
+
   return (
     <group>
       <mesh
@@ -56,6 +63,14 @@ const Table = ({ hand, phase }: TableProps) => {
           position={[0, 0, 0.01]}
           rotation={[0, 0, WALL_TILT]}
         />
+      )}
+      {phase instanceof WindowOfOpportunityPhase && (
+        <Text
+          text={`${5 - Math.floor((Date.now() - phase.startTime) / 1000)}`}
+          size={4}
+          color="white"
+          monospace
+        ></Text>
       )}
       <Walls
         wallStacks={wallStacks}

@@ -16,3 +16,4 @@ export const TURN_INDICATOR_HEIGHT =
   REVEALED_TILE_DISTANCE + TILE_HEIGHT / 2 + HAND_TO_TABLE_EDGE * 2;
 export const DISCARD_TILE_TILT = (60 * Math.PI) / 180;
 export const TILE_COLOR_FACE = 0xf8f0e3;
+export const TILE_BACK_RATIO = 0.3;

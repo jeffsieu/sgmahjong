@@ -1,14 +1,15 @@
-import { getCombinations } from "./game-state/action-generator";
-import { Chow, EyePair, Kong, Meld, MeldInstance, Pong } from "./melds";
-import type { DoubleProvider } from "./scoring/scoring";
-import { NumberedTile, StandardMahjong, Tile, TileInstance } from "./tiles";
+import { GameRules } from './config/rules';
+import { getCombinations } from './game-state/action-generator';
+import { Chow, EyePair, Kong, Meld, MeldInstance, Pong } from './melds';
+import type { DoubleProvider, NamedDoubleProvider } from './scoring/scoring';
+import { NumberedTile, StandardMahjong, Tile, TileInstance } from './tiles';
 
 export class Combination {
   constructor(
     readonly name: string,
     readonly melds: MeldInstance<Meld>[],
     readonly isWinning: boolean,
-    readonly getDoubles: DoubleProvider
+    readonly getDoubles: NamedDoubleProvider
   ) {}
 }
 
@@ -156,6 +157,40 @@ export class PongMatcher extends MeldMatcher<Pong> {
   }
 }
 
+export class KongMatcher extends MeldMatcher<Kong> {
+  constructor(readonly tileFilter?: (tile: Tile) => boolean) {
+    super();
+  }
+
+  getTileMatches(tiles: Tile[]): Set<Kong> {
+    const filteredTiles = this.tileFilter
+      ? tiles.filter(this.tileFilter)
+      : tiles;
+    const appearCounts = new Map<Tile, number>();
+    const matches = new Set<Kong>();
+
+    for (const tile of filteredTiles) {
+      const count = appearCounts.get(tile) || 0;
+      appearCounts.set(tile, count + 1);
+    }
+
+    for (const [tile, count] of appearCounts) {
+      if (count >= 4) {
+        matches.add(new Kong(tile));
+      }
+    }
+
+    return matches;
+  }
+
+  matches(meld: Meld): boolean {
+    return (
+      meld instanceof Kong &&
+      (!this.tileFilter || meld.tiles.every(this.tileFilter))
+    );
+  }
+}
+
 export class EyePairMatcher extends MeldMatcher<EyePair> {
   constructor(readonly tileFilter?: (tile: Tile) => boolean) {
     super();
@@ -202,7 +237,7 @@ export class MeldCombinationBuilder {
 
   build(isWinning: boolean, getDoubles: DoubleProvider): CombinationMatcher {
     if (this.melds.length !== 5) {
-      throw new Error("MeldCombinationBuilder must have 5 meld matchers");
+      throw new Error('MeldCombinationBuilder must have 5 meld matchers');
     }
     return new MeldCombinationMatcher(
       this.combinationName,
@@ -236,7 +271,10 @@ export class MeldCombinationMatcher implements CombinationMatcher {
         this.combinationName,
         melds,
         this.isWinning,
-        this.getDoubles
+        (rules: GameRules) => ({
+          name: this.combinationName,
+          score: this.getDoubles(rules),
+        })
       );
     } else {
       return null;

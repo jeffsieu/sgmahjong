@@ -2,11 +2,11 @@ import {
   DISCARD_PILE_ROW_LENGTH,
   TILE_HEIGHT,
   TILE_THICKNESS,
-} from "./constants";
-import type { Tile, TileInstance } from "../tiles";
-import { WithoutGeoMat } from "./object-props";
-import { GroupProps } from "react-three-fiber";
-import TileRow from "./TileRow";
+} from './constants';
+import type { Tile, TileInstance } from '../tiles';
+import { WithoutGeoMat } from './object-props';
+import { GroupProps } from 'react-three-fiber';
+import TileRow from './TileRow';
 
 export type DiscardPileProps = {
   tiles: TileInstance<Tile>[];

@@ -1,10 +1,9 @@
-import type { ReadonlyPlayer } from "./game-state/game-state";
+import type { ReadonlyPlayer } from './game-state/game-state';
 
 export namespace MessageLogger {
   const logEntries: LogEntry[] = [];
 
   export const log = (logEntry: LogEntry): void => {
-    console.debug(logEntry.message);
     logEntries.push(logEntry);
   };
 

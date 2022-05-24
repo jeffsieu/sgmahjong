@@ -1,8 +1,8 @@
-import { MeshProps } from "react-three-fiber";
-import { PlaneBufferGeometry, MeshStandardMaterial } from "three";
-import { CENTER_SQUARE_LENGTH } from "../constants";
-import { WithoutGeoMat } from "../object-props";
-import { animateMaterial } from "./anim";
+import { MeshProps } from 'react-three-fiber';
+import { PlaneBufferGeometry, MeshStandardMaterial } from 'three';
+import { CENTER_SQUARE_LENGTH } from '../constants';
+import { WithoutGeoMat } from '../object-props';
+import { animateMaterial } from './anim';
 
 const CenterTurnIndicator = (props: WithoutGeoMat<MeshProps>) => {
   const geometry = new PlaneBufferGeometry(

@@ -1,25 +1,25 @@
-import { BonusTile, TileInstance } from "../tiles";
+import { BonusTile, TileInstance } from '../tiles';
 import {
   TILE_HEIGHT,
   TILE_THICKNESS,
   TILE_WIDTH,
   DISCARD_TILE_TILT,
-} from "./constants";
+} from './constants';
 
-import gsap from "gsap";
-import type { ReadonlyPlayer } from "../game-state/game-state";
-import type { PlayerUI } from "../controls/hand-control";
-import { MessageLogger, PlayerLogEntry } from "../message-logger";
+import gsap from 'gsap';
+import type { ReadonlyPlayer } from '../game-state/game-state';
+import type { PlayerUI } from '../controls/hand-control';
+import { MessageLogger, PlayerLogEntry } from '../message-logger';
 import {
   DiscardTileAction,
   RevealBonusTileThenDrawAction,
-} from "../game-state/actions";
-import { WithoutGeoMat } from "./object-props";
-import { GroupProps, ThreeEvent } from "react-three-fiber";
-import TileMesh from "./TileMesh";
-import { useContext } from "react";
-import { TooltipContext } from "./TooltipContext";
-import { GameContext } from "../GameContext";
+} from '../game-state/actions';
+import { WithoutGeoMat } from './object-props';
+import { GroupProps, ThreeEvent } from 'react-three-fiber';
+import TileMesh from './TileMesh';
+import { useContext } from 'react';
+import { TooltipContext } from './TooltipContext';
+import { GameContext } from '../GameContext';
 
 export type PlayerHandProps = {
   player: ReadonlyPlayer;
@@ -43,8 +43,8 @@ const PlayerHand = ({
       hoveredTiles.size > 0 ? hoveredTiles.values().next().value : null;
     const hoveredTileTooltip = hoveredTile
       ? hoveredTile.value instanceof BonusTile
-        ? "Reveal"
-        : "Discard"
+        ? 'Reveal'
+        : 'Discard'
       : null;
     if (canControl) {
       if (hoveredTileTooltip) {
@@ -75,12 +75,12 @@ const PlayerHand = ({
               Math.sqrt(TILE_HEIGHT ** 2 + TILE_THICKNESS ** 2)) /
               2 -
             TILE_HEIGHT / 2,
-          ease: "power3.out",
+          ease: 'power3.out',
         });
         gsap.to(tileObject.parent.rotation, {
           duration: 0.3,
           x: DISCARD_TILE_TILT,
-          ease: "power3.out",
+          ease: 'power3.out',
         });
       }
       hoveredTiles.add(player.hand[position]);
@@ -99,12 +99,12 @@ const PlayerHand = ({
           duration: 0.3,
           y: 0,
           z: 0,
-          ease: "power3.out",
+          ease: 'power3.out',
         });
         gsap.to(tileObject.parent.rotation, {
           duration: 0.3,
           x: Math.PI / 2,
-          ease: "power3.out",
+          ease: 'power3.out',
         });
       }
 
@@ -115,7 +115,6 @@ const PlayerHand = ({
   const onTileClick =
     (position: number) =>
     (event: ThreeEvent<MouseEvent>): void => {
-      console.log("shesh");
       if (!canControl) {
         return;
       }
@@ -132,8 +131,6 @@ const PlayerHand = ({
           playerUi.tryExecuteAction(new DiscardTileAction(player, position));
         }
       } catch (error: any) {
-        console.debug(error);
-        console.debug(error.message);
         MessageLogger.log(new PlayerLogEntry(player, error.message));
       } finally {
         gameContext.update();

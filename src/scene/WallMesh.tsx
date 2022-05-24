@@ -1,8 +1,8 @@
-import TileRow from "./TileRow";
-import { TILE_THICKNESS, TILE_WIDTH } from "./constants";
-import type { WallStack } from "../game-state/pre-hand";
-import { WithoutGeoMat } from "./object-props";
-import { GroupProps } from "react-three-fiber";
+import TileRow from './TileRow';
+import { TILE_THICKNESS, TILE_WIDTH } from './constants';
+import type { WallStack } from '../game-state/pre-hand';
+import { WithoutGeoMat } from './object-props';
+import { GroupProps } from 'react-three-fiber';
 
 export type WallMeshProps = {
   wallStack: WallStack;
@@ -38,9 +38,6 @@ const WallMesh = ({
         <TileRow
           key={index}
           highlight={highlight}
-          // {onPointerOver}
-          // {onPointerOut}
-          // {onClick}
           position={[
             (initialStackLength / 2 - (rowOffset + rowLength / 2)) * TILE_WIDTH,
             0,

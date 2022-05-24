@@ -1,19 +1,19 @@
-import { getValidWindowOfOpportunityActions } from "../game-state/action-generator";
+import { getValidWindowOfOpportunityActions } from '../game-state/action-generator';
 import {
   DiscardTileAction,
   DrawTileAction,
   HandAction,
   RevealBonusTileThenDrawAction,
-} from "../game-state/actions";
-import type { Hand, ReadonlyPlayer } from "../game-state/game-state";
+} from '../game-state/actions';
+import type { Hand, ReadonlyPlayer } from '../game-state/game-state';
 import {
   PostDrawPhase,
   ReadonlyHandPhase,
   ToDiscardPhase,
   ToDrawPhase,
   WindowOfOpportunityPhase,
-} from "../game-state/phases";
-import { BonusTile, HonorTile, TileInstance } from "../tiles";
+} from '../game-state/phases';
+import { BonusTile, HonorTile, TileInstance } from '../tiles';
 
 export const getBestAction = (
   currentPhase: ReadonlyHandPhase,

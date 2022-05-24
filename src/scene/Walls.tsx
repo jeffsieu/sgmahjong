@@ -1,7 +1,7 @@
-import { useContext, useState } from "react";
-import { GroupProps } from "react-three-fiber";
-import { Vector3 } from "three";
-import type { WallStack } from "../game-state/pre-hand";
+import { useContext, useState } from 'react';
+import { GroupProps } from 'react-three-fiber';
+import { Vector3 } from 'three';
+import type { WallStack } from '../game-state/pre-hand';
 
 import {
   TILE_WIDTH,
@@ -9,10 +9,10 @@ import {
   TILE_HEIGHT,
   WALL_TILT,
   WALL_GAP,
-} from "./constants";
-import { WithoutGeoMat } from "./object-props";
-import { TooltipContext } from "./TooltipContext";
-import WallMesh from "./WallMesh";
+} from './constants';
+import { WithoutGeoMat } from './object-props';
+import { TooltipContext } from './TooltipContext';
+import WallMesh from './WallMesh';
 // import TooltipContent from "./TooltipContent.svelte";
 // import WallMesh from "./WallMesh.svelte";
 
@@ -32,7 +32,7 @@ const Walls = ({
 
   const onPointerOver = () => {
     setHighlight(true);
-    tooltipContext.setContent("Draw from wall");
+    tooltipContext.setContent('Draw from wall');
   };
 
   const onPointerOut = () => {
@@ -45,6 +45,7 @@ const Walls = ({
       onPointerOver={onPointerOver}
       onPointerOut={onPointerOut}
       onClick={onClick}
+      {...rest}
     >
       {wallStacks.map((wallStack, index) => {
         return (

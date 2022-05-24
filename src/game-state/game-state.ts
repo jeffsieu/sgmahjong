@@ -1,7 +1,7 @@
-import type { PlayerUI } from "../controls/hand-control";
-import type { HandAction } from "./actions";
-import { HandPhase, PostDrawPhase } from "./phases";
-import type { Meld, MeldInstance } from "../melds";
+import type { PlayerUI } from '../controls/hand-control';
+import type { HandAction } from './actions';
+import { HandPhase, PostDrawPhase } from './phases';
+import type { Meld, MeldInstance } from '../melds';
 import {
   BonusTile,
   SingaporeMahjong,
@@ -9,9 +9,9 @@ import {
   Tile,
   TileInstance,
   Wind,
-} from "../tiles";
-import { PhysicalWall, PreGameDiceRoll } from "./pre-hand";
-import type { WinningHand } from "../scoring/scoring";
+} from '../tiles';
+import { PhysicalWall, PreGameDiceRoll } from './pre-hand';
+import type { WinningHand } from '../scoring/scoring';
 
 export class Wall {
   readonly tiles: TileInstance<Tile>[];
@@ -32,7 +32,7 @@ export class Wall {
 
   draw(): TileInstance<Tile> {
     if (!this.canDraw()) {
-      throw new Error("Cannot draw from wall");
+      throw new Error('Cannot draw from wall');
     }
     return this.tiles.pop()!;
   }
@@ -82,7 +82,7 @@ export class SeatedPlayer implements ReadonlyPlayer {
     const discarded = this.hand.splice(position, 1)[0];
     if (this.hasBonusTileInHand()) {
       throw new Error(
-        "Bonus tile must be shown before other tiles can be discarded."
+        'Bonus tile must be shown before other tiles can be discarded.'
       );
     } else {
       this.gameHand.discardPile.push(discarded);

@@ -1,12 +1,24 @@
 import type {
-  DoubleProvider,
-  WindDependentDoubleProvider,
-} from "./scoring/scoring";
-import { HonorTile, Suit, Tile, TileInstance } from "./tiles";
+  NamedDoubleProvider,
+  WindDependentNamedDoubleProvider,
+} from './scoring/scoring';
+import { HonorTile, Suit, Tile, TileInstance } from './tiles';
 
 export class MeldInstance<M extends Meld> {
   constructor(readonly value: M, readonly tiles: TileInstance<Tile>[]) {}
+
+  get revealedTileWidth(): number {
+    return this.tiles.length;
+  }
 }
+
+export class ConcealedKong extends MeldInstance<Kong> {
+  get revealedTileWidth(): number {
+    return 3;
+  }
+}
+
+export class ExposedKong extends MeldInstance<Kong> {}
 
 export abstract class Meld {
   constructor(readonly tiles: Tile[]) {}
@@ -14,17 +26,13 @@ export abstract class Meld {
   abstract meldEquals(other: Meld): boolean;
 
   toString(): string {
-    return this.tiles.map((tile) => tile.toString()).join("");
+    return this.tiles.map((tile) => tile.toString()).join('');
   }
 }
 
 export abstract class ThreeTileMeld extends Meld {}
 
 export class Chow extends ThreeTileMeld {
-  constructor(tiles: Tile[]) {
-    super(tiles);
-  }
-
   meldEquals(other: Meld): boolean {
     if (!(other instanceof Chow)) {
       return false;
@@ -33,7 +41,10 @@ export class Chow extends ThreeTileMeld {
   }
 }
 
-export class Pong extends ThreeTileMeld implements WindDependentDoubleProvider {
+export class Pong
+  extends ThreeTileMeld
+  implements WindDependentNamedDoubleProvider
+{
   constructor(readonly tile: Tile) {
     super([tile, tile, tile]);
   }
@@ -45,17 +56,20 @@ export class Pong extends ThreeTileMeld implements WindDependentDoubleProvider {
     return this.tiles.every((tile) => other.tiles.includes(tile));
   }
 
-  resolveWithWind(mainWind: Suit, playerWind: Suit): DoubleProvider {
+  resolveWithWind(mainWind: Suit, playerWind: Suit): NamedDoubleProvider {
     if (this.tile instanceof HonorTile) {
       return this.tile.getPongValue(mainWind, playerWind);
     } else {
-      return () => 0;
+      return () => ({
+        name: 'Pong',
+        score: 0,
+      });
     }
   }
 }
 
 export class Kong extends Meld {
-  constructor(tile: Tile) {
+  constructor(readonly tile: Tile) {
     super([tile, tile, tile, tile]);
   }
 

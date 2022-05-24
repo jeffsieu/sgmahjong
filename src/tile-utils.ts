@@ -6,7 +6,7 @@ import {
   Tile,
   TileInstance,
   Wind,
-} from "./tiles";
+} from './tiles';
 
 export namespace TileDebug {
   const usedTiles = new Set<TileInstance<Tile>>();
@@ -18,7 +18,7 @@ export namespace TileDebug {
       tileFilter(tile.value)
     ).find((tile) => !usedTiles.has(tile)) as TileInstance<T>;
     if (!tile) {
-      throw new Error("No tile found.");
+      throw new Error('No tile found.');
     }
     usedTiles.add(tile);
     return tile;

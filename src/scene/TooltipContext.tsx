@@ -5,9 +5,9 @@ import {
   useState,
   useRef,
   useMemo,
-} from "react";
+} from 'react';
 
-import "./TooltipContext.css";
+import './TooltipContext.css';
 
 export type TooltipContextValue = {
   setContent: (content: string | null) => void;
@@ -39,7 +39,7 @@ const TooltipContextProvider = (props: PropsWithChildren<{}>) => {
     const updateLocation = (event: MouseEvent) => {
       setTooltipStyle(getTooltipStyle(event.pageX, event.pageY));
     };
-    window.addEventListener("mousemove", updateLocation);
+    window.addEventListener('mousemove', updateLocation);
   }, []);
 
   const value = useMemo(

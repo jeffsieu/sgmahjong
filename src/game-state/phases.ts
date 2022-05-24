@@ -1,5 +1,5 @@
-import type { Hand, ReadonlyHand, ReadonlyPlayer } from "./game-state";
-import { BonusTile, StandardMahjong, Tile, TileInstance } from "../tiles";
+import type { Hand, ReadonlyHand, ReadonlyPlayer } from './game-state';
+import { BonusTile, StandardMahjong, Tile, TileInstance } from '../tiles';
 import {
   CloseWindowOfOpportunityAction,
   DiscardTileAction,
@@ -14,8 +14,9 @@ import {
   SkipWindowOfOpportunityAction,
   ToDiscardAction,
   WindowOfOpportunityAction,
-} from "./actions";
-import { Chow } from "../melds";
+} from './actions';
+import { Chow } from '../melds';
+import { STANDARD_GAME_RULES } from '../config/rules';
 
 export interface ReadonlyHandPhase {
   name: string;
@@ -47,7 +48,7 @@ export abstract class PlayerControlledPhase extends HandPhase {
 
   getErrorForAction(action: HandAction): Error | null {
     if (action.player !== this.player) {
-      return new Error("It is not your turn yet.");
+      return new Error('It is not your turn yet.');
     }
     return null;
   }
@@ -84,11 +85,11 @@ export class PostDrawPhase extends PlayerControlledPhase {
     }
 
     if (!(action instanceof RevealBonusTileThenDrawAction)) {
-      return new Error("Invalid action.");
+      return new Error('Invalid action.');
     }
 
     if (!this.tilesToShow.includes(action.bonusTile)) {
-      return new Error("Newly drawn bonus tile cannot be thrown yet.");
+      return new Error('Newly drawn bonus tile cannot be thrown yet.');
     }
 
     return null;
@@ -150,7 +151,7 @@ export class ToDiscardPhase extends PlayerControlledPhase {
     }
 
     if (!(action instanceof ToDiscardAction)) {
-      return new Error("Invalid action.");
+      return new Error('Invalid action.');
     }
 
     return null;
@@ -226,7 +227,7 @@ export class ToDrawPhase extends PlayerControlledPhase {
     }
 
     if (!(action instanceof DrawTileAction)) {
-      return new Error("Invalid action.");
+      return new Error('Invalid action.');
     }
 
     return null;
@@ -262,12 +263,24 @@ export class WindowOfOpportunityPhase extends HandPhase {
     readonly player: ReadonlyPlayer,
     readonly discardedTile: TileInstance<Tile>
   ) {
-    super("Window of Opportunity", hand);
+    super('Window of Opportunity', hand);
     for (const player of this.hand
       .getOrderedPlayersFrom(this.player.wind)
       .slice(1)) {
       this.actions.set(player, null);
     }
+
+    const interval = setInterval(() => {
+      if (
+        Date.now() - this.startTime >
+        STANDARD_GAME_RULES.windowOfOpportunityTime * 1000
+      ) {
+        try {
+          this.hand.tryExecuteAction(new CloseWindowOfOpportunityAction());
+        } catch (e) {}
+        clearInterval(interval);
+      }
+    }, 100);
   }
 
   tryExecuteAction(action: HandAction): void {
@@ -290,11 +303,11 @@ export class WindowOfOpportunityPhase extends HandPhase {
 
   getErrorForAction(action: HandAction): Error | null {
     if (!(action instanceof WindowOfOpportunityAction)) {
-      return new Error("Invalid action.");
+      return new Error('Invalid action.');
     }
 
     if (action.player === this.player) {
-      return new Error("You cannot reclaim your discarded tile.");
+      return new Error('You cannot reclaim your discarded tile.');
     }
 
     if (
@@ -312,8 +325,6 @@ export class WindowOfOpportunityPhase extends HandPhase {
 
   private close() {
     this.isClosed = true;
-
-    console.debug("Closing window of opportunity.");
 
     // Get the action with the highest priority
     const actions = Array.from(this.actions.values());
@@ -364,7 +375,7 @@ export class WindowOfOpportunityPhase extends HandPhase {
       ) {
         return this.executedAction.getNextPhase(this);
       } else {
-        throw new Error("Invalid action.");
+        throw new Error('Invalid action.');
       }
     }
   }
@@ -372,7 +383,7 @@ export class WindowOfOpportunityPhase extends HandPhase {
 
 export class EndOfHandPhase extends PlayerControlledPhase {
   constructor(hand: Hand, player: ReadonlyPlayer) {
-    super("End of Hand", hand, player);
+    super('End of Hand', hand, player);
   }
 
   private isOver: boolean = false;
@@ -389,7 +400,7 @@ export class EndOfHandPhase extends PlayerControlledPhase {
 
   getErrorForAction(action: HandAction): Error | null {
     if (!(action instanceof NextHandAction)) {
-      return new Error("Invalid action.");
+      return new Error('Invalid action.');
     }
 
     return null;

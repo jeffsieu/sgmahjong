@@ -1,13 +1,14 @@
-import type { ReadonlyPlayer, Hand } from "./game-state";
-import type { BonusTile, Tile, TileInstance } from "../tiles";
-import { Chow, Kong, Meld, MeldInstance, Pong } from "../melds";
-import type { WinningHand } from "../scoring/scoring";
+import type { ReadonlyPlayer, Hand } from './game-state';
+import type { BonusTile, Tile, TileInstance } from '../tiles';
+import { Chow, Kong, Meld, MeldInstance, Pong } from '../melds';
+import type { WinningHand } from '../scoring/scoring';
 import {
   EndOfHandPhase,
   HandPhase,
   ToDiscardPhase,
+  ToDrawPhase,
   WindowOfOpportunityPhase,
-} from "./phases";
+} from './phases';
 
 export interface HandAction {
   player: ReadonlyPlayer | null;
@@ -94,7 +95,10 @@ export class FormMeldAction extends NonTrivialPlayerWindowOfOpportunityAction {
     readonly meld: MeldInstance<Meld>,
     readonly discardedTile: TileInstance<Tile>
   ) {
-    super(player, meld.value instanceof Pong ? 2 : 1);
+    super(
+      player,
+      meld.value instanceof Pong || meld.value instanceof Kong ? 2 : 1
+    );
   }
 
   execute(hand: Hand): void {
@@ -111,6 +115,12 @@ export class FormMeldAction extends NonTrivialPlayerWindowOfOpportunityAction {
 
   getNextPhase(currentPhase: WindowOfOpportunityPhase): HandPhase {
     return new ToDiscardPhase(currentPhase.hand, this.player, null);
+  }
+}
+
+export class FormKongAction extends FormMeldAction {
+  getNextPhase(currentPhase: WindowOfOpportunityPhase): HandPhase {
+    return new ToDrawPhase(currentPhase.hand, this.player);
   }
 }
 

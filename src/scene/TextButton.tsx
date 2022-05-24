@@ -3,12 +3,12 @@ import {
   PlaneBufferGeometry,
   ShapeBufferGeometry,
   Vector3,
-} from "three";
+} from 'three';
 
-import Text from "./Text";
-import gsap from "gsap";
-import { useMemo, useState } from "react";
-import { MeshProps } from "react-three-fiber";
+import Text from './Text';
+import gsap from 'gsap';
+import { useMemo, useState } from 'react';
+import { MeshProps } from 'react-three-fiber';
 
 export type TextButtonProps = {
   text: string;
@@ -46,8 +46,6 @@ const TextButton = ({
       }),
     []
   );
-
-  console.log("rest", rest);
 
   const onTextGeometryLoaded = (textGeometry: ShapeBufferGeometry) => {
     if (isGeometryLoaded) {
@@ -111,7 +109,6 @@ const TextButton = ({
       onPointerOut={onPointerOut}
       {...rest}
       onClick={() => {
-        console.log(text);
         onClick();
       }}
       castShadow

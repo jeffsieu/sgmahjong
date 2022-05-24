@@ -1,16 +1,22 @@
-import { ChowMatcher, MeldMatcher, PongMatcher } from "../combi-utils";
-import { getWinningHand } from "../combis";
-import type { Meld } from "../melds";
-import { WinningHandType } from "../scoring/scoring";
-import type { Tile, TileInstance } from "../tiles";
 import {
+  ChowMatcher,
+  KongMatcher,
+  MeldMatcher,
+  PongMatcher,
+} from '../combi-utils';
+import { getWinningHand } from '../combis';
+import type { Meld } from '../melds';
+import { WinningHandType } from '../scoring/scoring';
+import type { Tile, TileInstance } from '../tiles';
+import {
+  FormKongAction,
   FormMeldAction,
   MahjongAction,
   PlayerWindowOfOpportunityAction,
   SkipWindowOfOpportunityAction,
-} from "./actions";
-import type { ReadonlyPlayer } from "./game-state";
-import type { WindowOfOpportunityPhase } from "./phases";
+} from './actions';
+import type { ReadonlyPlayer } from './game-state';
+import type { WindowOfOpportunityPhase } from './phases';
 
 export const getValidChowActions = (
   player: ReadonlyPlayer,
@@ -26,6 +32,21 @@ export const getValidPongActions = (
   return getValidMeldActions(player, discardedTile, new PongMatcher());
 };
 
+export const getValidKongActions = (
+  player: ReadonlyPlayer,
+  discardedTile: TileInstance<Tile>
+): FormMeldAction[] => {
+  const allTiles = [...player.hand, discardedTile];
+  const melds = new KongMatcher().getTileInstanceMatches(allTiles);
+  const validMelds = [...melds].filter((meld) =>
+    meld.tiles.includes(discardedTile)
+  );
+
+  return validMelds.flatMap(
+    (meld) => new FormKongAction(player, meld, discardedTile)
+  );
+};
+
 export const getValidMahjongActions = (
   player: ReadonlyPlayer,
   discardedTile: TileInstance<Tile>
@@ -36,9 +57,6 @@ export const getValidMahjongActions = (
     discardedTile,
     WinningHandType.Discard
   );
-  console.debug(player.hand);
-  console.debug(discardedTile);
-  console.debug("winningHand", winningHand);
   return winningHand !== null
     ? [new MahjongAction(player, discardedTile, winningHand)]
     : [];
@@ -51,6 +69,7 @@ export const getValidWindowOfOpportunityActions = (
   return [
     ...getValidChowActions(player, phase.discardedTile),
     ...getValidPongActions(player, phase.discardedTile),
+    ...getValidKongActions(player, phase.discardedTile),
     ...getValidMahjongActions(player, phase.discardedTile),
     new SkipWindowOfOpportunityAction(player),
   ].filter((action) => phase.canExecuteAction(action));
